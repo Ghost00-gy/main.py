@@ -25,7 +25,7 @@ with col1:
     
     if st.button("🚀 Iniciar Triagem Agora"):
         # Comando para trocar de página programaticamente
-        st.switch_page("pages/1_🩺_Triagem.py")
+        st.switch_page("pages/1_Triagem.py")
 
 with col2:
     # Imagem profissional de saúde (Placeholder de alta qualidade)
