@@ -103,35 +103,56 @@ def mostrar_cadastro():
 
 def mostrar_admin():
     st.sidebar.button("⬅️ Voltar", on_click=lambda: st.session_state.update({"pagina": "home"}))
-    st.title("📊 Painel de Gestão HomeCare")
+    st.title("📊 Centro de Comando HomeCare")
     
     conn = sqlite3.connect('homecare_v2.db')
     cursor = conn.cursor()
+    
+    # Buscas para o Dashboard
+    total = cursor.execute("SELECT COUNT(*) FROM profissionais").fetchone()[0]
+    pendentes = cursor.execute("SELECT COUNT(*) FROM profissionais WHERE verificado = 0").fetchone()[0]
+    
+    # Exibição de Métricas no topo
+    m1, m2, m3 = st.columns(3)
+    m1.metric("Total de Parceiros", total)
+    m2.metric("Aguardando Validação", pendentes, delta_color="inverse")
+    m3.metric("Status do Sistema", "Online")
+    
+    st.markdown("---")
+    
+    # Listagem para Gestão
     cursor.execute("SELECT id, nome, categoria, conselho, cidade, verificado FROM profissionais")
     pros = cursor.fetchall()
     conn.close()
     
     if not pros:
-        st.info("Nenhum profissional cadastrado no momento.")
+        st.info("Nenhum profissional cadastrado.")
     else:
+        st.subheader("Gerenciar Profissionais")
         for p in pros:
+            status_cor = "orange" if p[5] == 0 else "green"
+            status_txt = "PENDENTE" if p[5] == 0 else "VERIFICADO"
+            
             with st.container():
                 st.markdown(f"""
-                <div class="card-admin">
-                    <div style="display: flex; justify-content: space-between;">
-                        <b>{p[1]}</b>
-                        <span class="badge-verificado">{'✅ Verificado' if p[5] == 1 else '⏳ Pendente'}</span>
+                <div style="background: white; padding: 15px; border-radius: 10px; border-left: 5px solid {status_cor}; margin-bottom: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.05);">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <span style="font-weight: bold; font-size: 18px;">{p[1]}</span>
+                        <span style="background: {status_cor}; color: white; padding: 2px 10px; border-radius: 15px; font-size: 12px;">{status_txt}</span>
                     </div>
-                    <p style="font-size: 14px; color: #666;">{p[2]} | {p[3]} | 📍 {p[4]}</p>
+                    <p style="margin: 5px 0; color: #555;">{p[2]} | {p[3]} | 📍 {p[4]}</p>
                 </div>
                 """, unsafe_allow_html=True)
-                col_btn1, col_btn2 = st.columns([1, 4])
-                if col_btn1.button(f"Validar ID {p[0]}", key=f"val_{p[0]}"):
-                    # Lógica para marcar como verificado
-                    conn = sqlite3.connect('homecare_v2.db')
-                    conn.execute("UPDATE profissionais SET verificado = 1 WHERE id = ?", (p[0],))
-                    conn.commit(); conn.close()
-                    st.rerun()
+                
+                # Botão de ação rápida
+                if p[5] == 0:
+                    if st.button(f"Aprovar {p[1]}", key=f"btn_{p[0]}"):
+                        c = sqlite3.connect('homecare_v2.db')
+                        c.execute("UPDATE profissionais SET verificado = 1 WHERE id = ?", (p[0],))
+                        c.commit()
+                        c.close()
+                        st.success(f"Profissional {p[1]} aprovado!")
+                        st.rerun()
 
 # Lógica da Triagem (mantida conforme anterior, mas agora mostrando dados robustos)
 def mostrar_triagem():
