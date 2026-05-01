@@ -1,4 +1,5 @@
 import streamlit as st
+st.set_page_config(page_title="HomeCare Connect | Triagem", page_icon="🩺")
 import google.generativeai as genai
 import sqlite3
 import json
