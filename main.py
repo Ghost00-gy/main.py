@@ -13,15 +13,26 @@ if 'pagina' not in st.session_state:
 def init_db():
     conn = sqlite3.connect('homecare_v2.db')
     cursor = conn.cursor()
-    # Adicionando colunas de robustez: conselho, bio, experiencia, verificado
+    
+    # Criamos a tabela se ela não existir
     cursor.execute('''CREATE TABLE IF NOT EXISTS profissionais 
                       (id INTEGER PRIMARY KEY AUTOINCREMENT, 
                        nome TEXT, categoria TEXT, contato TEXT, cidade TEXT,
                        conselho TEXT, bio TEXT, experiencia TEXT, verificado INTEGER DEFAULT 0)''')
+    
+    # TRUQUE TÉCNICO: Vamos tentar adicionar as colunas novas caso a tabela seja a antiga
+    # Isso evita que o erro se repita sem precisar apagar o arquivo
+    try:
+        cursor.execute("ALTER TABLE profissionais ADD COLUMN conselho TEXT")
+        cursor.execute("ALTER TABLE profissionais ADD COLUMN bio TEXT")
+        cursor.execute("ALTER TABLE profissionais ADD COLUMN experiencia TEXT")
+        cursor.execute("ALTER TABLE profissionais ADD COLUMN verificado INTEGER DEFAULT 0")
+    except:
+        # Se der erro aqui, é porque as colunas já existem, então não fazemos nada
+        pass
+        
     conn.commit()
     conn.close()
-
-init_db()
 
 # 3. ESTILIZAÇÃO E COMPONENTES VISUAIS
 st.markdown("""
