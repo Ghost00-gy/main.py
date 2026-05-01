@@ -14,26 +14,30 @@ def init_db():
     conn = sqlite3.connect('homecare_v2.db')
     cursor = conn.cursor()
     
-    # Criamos a tabela se ela não existir
+    # Cria a tabela base se não existir
     cursor.execute('''CREATE TABLE IF NOT EXISTS profissionais 
                       (id INTEGER PRIMARY KEY AUTOINCREMENT, 
-                       nome TEXT, categoria TEXT, contato TEXT, cidade TEXT,
-                       conselho TEXT, bio TEXT, experiencia TEXT, verificado INTEGER DEFAULT 0)''')
+                       nome TEXT, categoria TEXT, contato TEXT, cidade TEXT)''')
     
-    # TRUQUE TÉCNICO: Vamos tentar adicionar as colunas novas caso a tabela seja a antiga
-    # Isso evita que o erro se repita sem precisar apagar o arquivo
-    try:
-        cursor.execute("ALTER TABLE profissionais ADD COLUMN conselho TEXT")
-        cursor.execute("ALTER TABLE profissionais ADD COLUMN bio TEXT")
-        cursor.execute("ALTER TABLE profissionais ADD COLUMN experiencia TEXT")
-        cursor.execute("ALTER TABLE profissionais ADD COLUMN verificado INTEGER DEFAULT 0")
-    except:
-        # Se der erro aqui, é porque as colunas já existem, então não fazemos nada
-        pass
-        
+    # Lista de colunas que precisam existir para o app ser "Robusto"
+    colunas_novas = [
+        ("conselho", "TEXT"),
+        ("bio", "TEXT"),
+        ("experiencia", "TEXT"),
+        ("verificado", "INTEGER DEFAULT 0")
+    ]
+    
+    # Tenta adicionar cada coluna individualmente
+    for nome_col, tipo_col in colunas_novas:
+        try:
+            cursor.execute(f"ALTER TABLE profissionais ADD COLUMN {nome_col} {tipo_col}")
+        except sqlite3.OperationalError:
+            # Se a coluna já existir, o SQLite avisará e nós apenas ignoramos
+            pass
+            
     conn.commit()
     conn.close()
-
+    
 # 3. ESTILIZAÇÃO E COMPONENTES VISUAIS
 st.markdown("""
     <style>
