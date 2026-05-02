@@ -168,12 +168,26 @@ def mostrar_triagem():
                     st.success(f"📍 Recomendação para: {dados['cat']}")
                     st.info(f"💡 Dica Profissional: {dados['msg']}")
                     
-                    # Busca profissionais aprovados no banco
-                    conn = sqlite3.connect('homecare_v2.db')
-                    cursor = conn.cursor()
-                    cursor.execute("SELECT nome, contato, conselho, bio FROM profissionais WHERE verificado=1 AND categoria=?", (dados['cat'],))
-                    encontrados = cursor.fetchall()
-                    conn.close()
+                   # Dentro da função mostrar_triagem, no loop de profissionais encontrados:
+
+if encontrados:
+    st.write(f"### Profissionais Verificados em Tatuí:")
+    for prof in encontrados:
+        # Criamos a mensagem automática (codificada para URL)
+        mensagem_venda = f"Olá {prof[0]}, vi seu perfil verificado no HomeCare Connect e gostaria de agendar uma consulta."
+        mensagem_url = mensagem_venda.replace(" ", "%20")
+        
+        st.markdown(f"""
+        <div class="card-resultado">
+            <h3>{prof[0]}</h3>
+            <p><b>{dados['cat']}</b> | {prof[2]}</p>
+            <p style="font-size: 14px; color: #555;">{prof[3]}</p>
+            <a href="https://wa.me/{prof[1]}?text={mensagem_url}" target="_blank" 
+               style="background:#25D366; color:white; padding:12px 25px; border-radius:8px; text-decoration:none; font-weight:bold; display:inline-block;">
+               Chamar no WhatsApp
+            </a>
+        </div>
+        """, unsafe_allow_html=True)
                     
                     if encontrados:
                         st.write(f"### Profissionais Verificados em Tatuí:")
