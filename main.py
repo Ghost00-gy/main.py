@@ -83,25 +83,64 @@ def mostrar_cadastro():
 def mostrar_admin():
     st.sidebar.button("⬅️ Voltar", on_click=lambda: st.session_state.update({"pagina": "home"}))
     st.title("📊 Painel Administrativo")
+
+    # Sistema de Login Simples
+    if "autenticado" not in st.session_state:
+        st.session_state.autenticado = False
+
+    if not st.session_state.autenticado:
+        senha = st.text_input("Digite a senha de administrador:", type="password")
+        if st.button("Acessar Painel"):
+            if senha == "tatuicare2026":
+                st.session_state.autenticado = True
+                st.rerun()
+            else:
+                st.error("Senha incorreta. Acesso negado.")
+        return # Para a execução aqui se não estiver autenticado
+
+    # Conteúdo do Painel (Só aparece se autenticado)
+    if st.sidebar.button("🔒 Sair do Painel"):
+        st.session_state.autenticado = False
+        st.rerun()
+
     conn = sqlite3.connect('homecare_v2.db')
     cursor = conn.cursor()
-    pros = cursor.execute("SELECT id, nome, categoria, verificado FROM profissionais").fetchall()
+    
+    # Métricas Rápidas
+    total = cursor.execute("SELECT COUNT(*) FROM profissionais").fetchone()[0]
+    pendentes = cursor.execute("SELECT COUNT(*) FROM profissionais WHERE verificado = 0").fetchone()[0]
+    
+    col_m1, col_m2 = st.columns(2)
+    col_m1.metric("Total de Cadastros", total)
+    col_m2.metric("Aguardando Aprovação", pendentes)
+    
+    st.markdown("---")
+    
+    pros = cursor.execute("SELECT id, nome, categoria, verificado, conselho FROM profissionais").fetchall()
+    
     for p in pros:
-        status = "✅ OK" if p[3] == 1 else "⏳ PENDENTE"
+        status = "✅ VERIFICADO" if p[3] == 1 else "⏳ PENDENTE"
         with st.container():
-            st.markdown(f'<div class="card-admin"><b>{p[1]}</b> - {p[2]} - {status}</div>', unsafe_allow_html=True)
+            st.markdown(f"""
+            <div class="card-admin">
+                <span style="float:right; font-weight:bold; color:{'#28a745' if p[3]==1 else '#ffc107'};">{status}</span>
+                <b>{p[1]}</b><br>
+                <small>{p[2]} | {p[4]}</small>
+            </div>
+            """, unsafe_allow_html=True)
+            
             c1, c2 = st.columns(2)
             with c1:
                 if p[3] == 0:
-                    if st.button(f"Aprovar {p[0]}", key=f"ap_{p[0]}"):
+                    if st.button(f"Aprovar {p[1]}", key=f"ap_{p[0]}"):
                         cursor.execute("UPDATE profissionais SET verificado = 1 WHERE id = ?", (p[0],))
                         conn.commit(); st.rerun()
             with c2:
-                if st.button(f"🗑️ Excluir {p[0]}", key=f"ex_{p[0]}"):
+                if st.button(f"🗑️ Remover Cadastro", key=f"ex_{p[0]}"):
                     cursor.execute("DELETE FROM profissionais WHERE id = ?", (p[0],))
                     conn.commit(); st.rerun()
     conn.close()
-
+    
 def mostrar_triagem():
     st.sidebar.button("⬅️ Voltar", on_click=lambda: st.session_state.update({"pagina": "home"}))
     st.title("🩺 Triagem Inteligente")
