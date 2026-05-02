@@ -9,40 +9,28 @@ st.set_page_config(page_title="HomeCare Connect", layout="wide", page_icon="🏥
 if 'pagina' not in st.session_state:
     st.session_state.pagina = "home"
 
-# 2. BANCO DE DADOS - MIGRAÇÃO E INICIALIZAÇÃO
+# 2. BANCO DE DADOS
 def init_db():
     conn = sqlite3.connect('homecare_v2.db')
     cursor = conn.cursor()
-    
-    # Cria a tabela base
     cursor.execute('''CREATE TABLE IF NOT EXISTS profissionais 
                       (id INTEGER PRIMARY KEY AUTOINCREMENT, 
                        nome TEXT, categoria TEXT, contato TEXT, cidade TEXT)''')
-    
-    # Verifica colunas existentes para evitar erros de migração
     cursor.execute("PRAGMA table_info(profissionais)")
     colunas_atuais = [coluna[1] for coluna in cursor.fetchall()]
-    
-    novas = [
-        ("conselho", "TEXT"),
-        ("bio", "TEXT"),
-        ("experiencia", "TEXT"),
-        ("verificado", "INTEGER DEFAULT 0")
-    ]
-    
+    novas = [("conselho", "TEXT"), ("bio", "TEXT"), ("experiencia", "TEXT"), ("verificado", "INTEGER DEFAULT 0")]
     for nome_col, tipo_col in novas:
         if nome_col not in colunas_atuais:
             try:
                 cursor.execute(f"ALTER TABLE profissionais ADD COLUMN {nome_col} {tipo_col}")
             except:
                 pass 
-                
     conn.commit()
     conn.close()
 
 init_db()
 
-# 3. ESTILIZAÇÃO CSS
+# 3. ESTILIZAÇÃO
 st.markdown("""
     <style>
     .main { background-color: #f8f9fa; }
@@ -51,12 +39,10 @@ st.markdown("""
         box-shadow: 0 4px 6px rgba(0,0,0,0.05); border-top: 5px solid #1A3A5A;
         margin-bottom: 15px;
     }
-    .stButton>button { border-radius: 8px; font-weight: bold; }
     </style>
     """, unsafe_allow_html=True)
 
 # 4. FUNÇÕES DE TELA
-
 def mostrar_home():
     col1, col2 = st.columns([1, 1])
     with col1:
@@ -75,134 +61,83 @@ def mostrar_home():
 def mostrar_cadastro():
     st.sidebar.button("⬅️ Voltar", on_click=lambda: st.session_state.update({"pagina": "home"}))
     st.title("📝 Cadastro Profissional")
-    
-    with st.form("registro_completo"):
+    with st.form("registro"):
         c1, c2 = st.columns(2)
         with c1:
             nome = st.text_input("Nome Completo")
             cat = st.selectbox("Especialidade", ["Medico", "Enfermeiro", "Tecnico", "Fisioterapeuta", "Psicologo"])
-            conselho = st.text_input("Registro Profissional (CRM, COREN, etc)")
-            whatsapp = st.text_input("WhatsApp (com DDD)")
+            conselho = st.text_input("Registro Profissional")
+            whatsapp = st.text_input("WhatsApp")
         with c2:
             cidade = st.text_input("Cidade/Estado")
-            bio = st.text_area("Resumo Profissional")
-            exp = st.text_area("Histórico de Atuação")
-            
-        if st.form_submit_button("Finalizar Cadastro"):
-            if nome and whatsapp and conselho:
+            bio = st.text_area("Bio")
+            exp = st.text_area("Experiência")
+        if st.form_submit_button("Cadastrar"):
+            if nome and whatsapp:
                 conn = sqlite3.connect('homecare_v2.db')
                 cursor = conn.cursor()
-                cursor.execute("""INSERT INTO profissionais (nome, categoria, contato, cidade, conselho, bio, experiencia) 
-                                  VALUES (?,?,?,?,?,?,?)""", (nome, cat, whatsapp, cidade, conselho, bio, exp))
+                cursor.execute("INSERT INTO profissionais (nome, categoria, contato, cidade, conselho, bio, experiencia) VALUES (?,?,?,?,?,?,?)", (nome, cat, whatsapp, cidade, conselho, bio, exp))
                 conn.commit(); conn.close()
-                st.success("Cadastro realizado! Aguarde a aprovação administrativa.")
-            else:
-                st.error("Preencha os campos obrigatórios.")
+                st.success("Sucesso!")
+            else: st.error("Preencha tudo.")
 
 def mostrar_admin():
     st.sidebar.button("⬅️ Voltar", on_click=lambda: st.session_state.update({"pagina": "home"}))
-    st.title("📊 Painel de Controle")
-    
+    st.title("📊 Painel Admin")
     conn = sqlite3.connect('homecare_v2.db')
     cursor = conn.cursor()
-    
-    try:
-        total = cursor.execute("SELECT COUNT(*) FROM profissionais").fetchone()[0]
-        pendentes = cursor.execute("SELECT COUNT(*) FROM profissionais WHERE verificado = 0").fetchone()[0]
-        
-        m1, m2 = st.columns(2)
-        m1.metric("Total de Inscritos", total)
-        m2.metric("Aguardando Validação", pendentes)
-        
-        st.markdown("---")
-        
-        cursor.execute("SELECT id, nome, categoria, conselho, cidade, verificado FROM profissionais")
-        pros = cursor.fetchall()
-        
-        for p in pros:
-            status = "✅ OK" if p[5] == 1 else "⏳ PENDENTE"
-            with st.container():
-                st.markdown(f"""
-                <div class="card-admin">
-                    <b>{p[1]}</b> | {p[2]} | {status}<br>
-                    <small>{p[3]} - {p[4]}</small>
-                </div>
-                """, unsafe_allow_html=True)
-                
-                col_btn1, col_btn2 = st.columns([1, 1])
-                with col_btn1:
-                    if p[5] == 0:
-                        if st.button(f"Aprovar {p[1]}", key=f"btn_{p[0]}"):
-                            c = sqlite3.connect('homecare_v2.db')
-                            c.execute("UPDATE profissionais SET verificado = 1 WHERE id = ?", (p[0],))
-                            c.commit(); c.close()
-                            st.rerun()
-                with col_btn2:
-                    if st.button(f"🗑️ Excluir {p[1]}", key=f"del_{p[0]}"):
-                        c = sqlite3.connect('homecare_v2.db')
-                        c.execute("DELETE FROM profissionais WHERE id = ?", (p[0],))
-                        c.commit(); c.close()
-                        st.rerun()
-    except Exception as e:
-        st.error(f"Erro ao carregar Painel: {e}")
-    finally:
-        conn.close()
+    pros = cursor.execute("SELECT id, nome, categoria, conselho, cidade, verificado FROM profissionais").fetchall()
+    for p in pros:
+        status = "✅ OK" if p[5] == 1 else "⏳ PENDENTE"
+        with st.container():
+            st.markdown(f'<div class="card-admin"><b>{p[1]}</b> | {p[2]} | {status}</div>', unsafe_allow_html=True)
+            c1, c2 = st.columns(2)
+            with c1:
+                if p[5] == 0:
+                    if st.button(f"Aprovar {p[0]}", key=f"a_{p[0]}"):
+                        cursor.execute("UPDATE profissionais SET verificado = 1 WHERE id = ?", (p[0],))
+                        conn.commit(); st.rerun()
+            with c2:
+                if st.button(f"Excluir {p[0]}", key=f"e_{p[0]}"):
+                    cursor.execute("DELETE FROM profissionais WHERE id = ?", (p[0],))
+                    conn.commit(); st.rerun()
+    conn.close()
 
 def mostrar_triagem():
     st.sidebar.button("⬅️ Voltar", on_click=lambda: st.session_state.update({"pagina": "home"}))
     st.title("🩺 Triagem Inteligente")
-    
-    relato = st.text_area("Descreva o quadro do paciente:", height=150)
-
-    if st.button("Analisar e Localizar Especialistas"):
+    relato = st.text_area("Descreva o caso:")
+    if st.button("Analisar"):
         if relato:
-            with st.spinner("IA analisando..."):
+            with st.spinner("Conectando à rede de IA..."):
                 try:
-                    # Configuração para Python 3.11 e API estável
                     genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
-                    model = genai.GenerativeModel('gemini-1.5-flash')
+                    # REDUNDÂNCIA: Tenta o modelo flash, se falhar, usa o pro
+                    try:
+                        model = genai.GenerativeModel('gemini-1.5-flash')
+                        response = model.generate_content(f"Analise e retorne apenas JSON: {relato}")
+                    except:
+                        model = genai.GenerativeModel('gemini-pro')
+                        response = model.generate_content(f"Analise e retorne apenas JSON: {relato}")
                     
-                    prompt = f"Analise: '{relato}'. Retorne APENAS JSON: {{\"categoria\": \"Medico/Enfermeiro/Tecnico/Fisioterapeuta/Psicologo\", \"urgencia\": \"Baixa/Media/Alta\", \"resumo\": \"frase curta\"}}"
+                    texto = response.text.replace('```json', '').replace('```', '').strip()
+                    res = json.loads(texto)
                     
-                    response = model.generate_content(prompt)
-                    raw_res = response.text.strip()
-                    
-                    # Limpeza de JSON simplificada para evitar SyntaxError
-                    if "```json" in raw_res:
-                        raw_res = raw_res.split("```json")[1].split("```")[0]
-                    elif "```" in raw_res:
-                        raw_res = raw_res.split("```")[1].split("```")[0]
-                    
-                    res = json.loads(raw_res.strip())
-                    
-                    st.divider()
-                    st.success(f"Recomendação: {res['categoria']}")
+                    st.success(f"Recomendação: {res.get('categoria', 'Enfermeiro')}")
                     
                     conn = sqlite3.connect('homecare_v2.db')
                     cursor = conn.cursor()
-                    cursor.execute("""SELECT nome, categoria, contato, cidade, conselho, bio, experiencia 
-                                      FROM profissionais WHERE categoria=? AND verificado=1""", (res['categoria'],))
-                    pros = cursor.fetchall()
+                    cursor.execute("SELECT nome, contato FROM profissionais WHERE verificado=1 AND categoria=?", (res.get('categoria'),))
+                    encontrados = cursor.fetchall()
                     conn.close()
+                    
+                    for e in encontrados:
+                        st.info(f"Profissional: {e[0]} - WhatsApp: {e[1]}")
+                except Exception as ex:
+                    st.error(f"Erro na conexão. Tente novamente em instantes.")
+        else: st.warning("Descreva o caso.")
 
-                    if pros:
-                        for p in pros:
-                            st.markdown(f"""
-                            <div style="background: white; padding: 20px; border-radius: 15px; border-left: 10px solid #1A3A5A; margin-bottom: 20px;">
-                                <h3>{p[0]}</h3>
-                                <p><b>{p[1]}</b> | {p[4]} | 📍 {p[3]}</p>
-                                <p style="font-size: 14px;">{p[5]}</p>
-                                <a href="https://wa.me/{p[2]}" target="_blank" style="background:#25D366; color:white; padding:10px; border-radius:5px; text-decoration:none;">Chamar no WhatsApp</a>
-                            </div>
-                            """, unsafe_allow_html=True)
-                    else:
-                        st.warning(f"Nenhum {res['categoria']} verificado disponível.")
-                except Exception as e:
-                    st.error(f"Erro na IA: {e}")
-        else:
-            st.warning("Preencha o relato.")
-
-# 5. MAESTRO DE NAVEGAÇÃO
+# NAVEGAÇÃO
 if st.session_state.pagina == "home": mostrar_home()
 elif st.session_state.pagina == "triagem": mostrar_triagem()
 elif st.session_state.pagina == "cadastro": mostrar_cadastro()
