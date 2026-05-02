@@ -128,15 +128,21 @@ def mostrar_triagem():
     st.title("🩺 Triagem Inteligente")
     
     BASE_CUIDADOS = {
-        "coracao": {"cat": "Enfermeiro", "msg": "Cuidados pós-operatórios cardíacos exigem controle rigoroso de medicação e curativos."},
-        "cardiaco": {"cat": "Enfermeiro", "msg": "Cuidados pós-operatórios cardíacos exigem controle rigoroso de medicação e curativos."},
-        "femur": {"cat": "Fisioterapeuta", "msg": "Recuperação de cirurgia de fêmur foca em mobilidade precoce e prevenção de atrofia."},
-        "fratura": {"cat": "Fisioterapeuta", "msg": "Recuperação de cirurgia de fêmur foca em mobilidade precoce e prevenção de atrofia."},
+        "coracao": {"cat": "Enfermeiro", "msg": "Cuidados pós-operatórios cardíacos exigem controle rigoroso de sinais vitais e curativos estéreis."},
+        "cardiaco": {"cat": "Enfermeiro", "msg": "Cuidados pós-operatórios cardíacos exigem controle rigoroso de sinais vitais e curativos estéreis."},
+        "femur": {"cat": "Fisioterapeuta", "msg": "Recuperação de cirurgia de fêmur foca em mobilidade precoce e prevenção de atrofia por imobilidade."},
+        "fratura": {"cat": "Fisioterapeuta", "msg": "Recuperação de cirurgia de fêmur foca em mobilidade precoce e prevenção de atrofia por imobilidade."},
         "idoso": {"cat": "Tecnico", "msg": "Auxílio em atividades diárias, higiene corporal e alimentação monitorada."},
-        "ferida": {"cat": "Enfermeiro", "msg": "Tratamento de feridas e trocas de curativo devem seguir técnica estéril."},
-        "curativo": {"cat": "Enfermeiro", "msg": "Tratamento de feridas e trocas de curativo devem seguir técnica estéril."},
-        "reabilitacao": {"cat": "Fisioterapeuta", "msg": "Fisioterapia domiciliar para recuperação de força e equilíbrio."},
-        "medicamento": {"cat": "Tecnico", "msg": "Acompanhamento para administração correta de horários e dosagens de remédios."}
+        "ferida": {"cat": "Enfermeiro", "msg": "Tratamento de feridas e trocas de curativo devem seguir técnica estéril para evitar infecções."},
+        "curativo": {"cat": "Enfermeiro", "msg": "Tratamento de feridas e trocas de curativo devem seguir técnica estéril para evitar infecções."},
+        "reabilitacao": {"cat": "Fisioterapeuta", "msg": "Fisioterapia domiciliar focada no ganho de força muscular e equilíbrio."},
+        "avc": {"cat": "Fisioterapeuta", "msg": "Reabilitação neurofuncional pós-AVC para recuperação de movimentos e independência."},
+        "derrame": {"cat": "Fisioterapeuta", "msg": "Reabilitação neurofuncional pós-AVC para recuperação de movimentos e independência."},
+        "diabetes": {"cat": "Enfermeiro", "msg": "Monitoramento glicêmico, aplicação de insulina e cuidados preventivos com extremidades (pé diabético)."},
+        "insulina": {"cat": "Enfermeiro", "msg": "Monitoramento glicêmico, aplicação de insulina e cuidados preventivos com extremidades (pé diabético)."},
+        "alzheimer": {"cat": "Tecnico", "msg": "Acompanhamento focado em segurança ambiental, rotina estruturada e estímulo cognitivo."},
+        "memoria": {"cat": "Tecnico", "msg": "Acompanhamento focado em segurança ambiental, rotina estruturada e estímulo cognitivo."},
+        "pos-parto": {"cat": "Enfermeiro", "msg": "Apoio na amamentação, cuidados com o recém-nascido e monitoramento da recuperação materna."}
     }
 
     relato = st.text_area("Descreva a necessidade (ex: coração, idoso, curativo):", height=150).lower()
