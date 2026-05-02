@@ -1,1 +1,30 @@
+from sqlalchemy import Column, Integer, String, Float, Boolean, ForeignKey, DateTime
+from sqlalchemy.orm import relationship
+from datetime import datetime
+from .database import Base
 
+class Especialista(Base):
+    __tablename__ = "especialistas"
+    id = Column(Integer, primary_key=True, index=True)
+    nome = Column(String, nullable=False)
+    categoria = Column(String)  # Medico, Enfermeiro, etc.
+    registro_profissional = Column(String, unique=True) # CRM/COREN
+    uf = Column(String(2))
+    cidade = Column(String)
+    latitude = Column(Float)
+    longitude = Column(Float)
+    valor_hora = Column(Float)
+    rating = Column(Float, default=5.0)
+    verificado = Column(Boolean, default=False)
+
+class Atendimento(Base):
+    __tablename__ = "atendimentos"
+    id = Column(Integer, primary_key=True)
+    paciente_id = Column(Integer, ForeignKey("pacientes.id"))
+    especialista_id = Column(Integer, ForeignKey("especialistas.id"))
+    data_inicio = Column(DateTime, default=datetime.utcnow)
+    horas_total = Column(Float)
+    valor_bruto = Column(Float)      # Valor pago pela família
+    taxa_plataforma = Column(Float)  # Sua comissão (ex: 15%)
+    repasse_especialista = Column(Float) # Valor líquido para o profissional
+    status_pagamento = Column(String, default="pendente") # pendente, pago, repassado
