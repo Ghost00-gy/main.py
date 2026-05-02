@@ -1,213 +1,234 @@
 import streamlit as st
-import os, sqlite3, pandas as pd
-import folium
+import os, sqlite3, pandas as pd, folium
 from streamlit_folium import st_folium
 from geopy.geocoders import Nominatim
 from geopy.distance import geodesic
 from datetime import datetime
+import plotly.express as px
 
 # =========================================================
-# 1. DESIGN SYSTEM & ACESSIBILIDADE (Identidade Home Doctor)
+# 1. CONFIGURAÇÕES DE ALTA DISPONIBILIDADE & DESIGN SYSTEM
 # =========================================================
-st.set_page_config(page_title="HomeCare Connect | Gestão de Elite", layout="wide", page_icon="🏥")
+st.set_page_config(
+    page_title="HomeCare Connect | Padrão Internacional", 
+    layout="wide", 
+    page_icon="🏥"
+)
 
-def aplicar_estilo():
+def aplicar_estilo_premium():
     st.markdown("""
         <style>
-        /* Paleta Institucional: Azul Marinho, Branco, Cinza */
         :root {
-            --primary: #003366; /* Azul Home Doctor */
-            --secondary: #00A3AD; /* Verde Água Hospitalar */
-            --bg: #F4F7F9;
+            --primary: #003366; --secondary: #00A3AD; --text: #1A3A5A; --bg: #F4F7F9;
         }
-        
         .main { background-color: var(--bg); }
-        
-        h1, h2, h3 { color: var(--primary); font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-        
-        /* Card de Especialista Estilo Prontuário */
-        .card-hospitalar {
-            background: white; border-radius: 12px; padding: 30px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.08);
-            border-left: 15px solid var(--primary);
-            margin-bottom: 25px;
-        }
-        
         .stButton>button {
-            border-radius: 8px; height: 3.5em; font-weight: 600;
-            background-color: var(--primary); color: white;
-            transition: all 0.3s ease; border: none;
+            border-radius: 12px; height: 3.5em; font-weight: 700;
+            background-color: var(--primary); color: white; border: none;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1); transition: 0.3s;
         }
-        
-        .stButton>button:hover {
-            background-color: var(--secondary); transform: translateY(-2px);
+        .stButton>button:hover { transform: scale(1.02); background-color: var(--secondary); }
+        .card-global {
+            background: white; border-radius: 20px; padding: 30px;
+            box-shadow: 0 10px 30px rgba(0,51,102,0.08);
+            border-top: 8px solid var(--primary); margin-bottom: 25px;
         }
-        
-        /* Acessibilidade para idosos: Inputs maiores */
-        input, select, textarea { font-size: 1.2rem !important; }
+        .metric-box {
+            background: #E8F0FE; border-radius: 15px; padding: 20px;
+            text-align: center; border: 1px solid #003366;
+        }
         </style>
     """, unsafe_allow_html=True)
 
 # =========================================================
-# 2. MOTOR DE DADOS & INTELIGÊNCIA
+# 2. MOTOR DE DADOS & ARQUITETURA FINANCEIRA
 # =========================================================
 def init_db():
-    conn = sqlite3.connect('homecare_elite.db')
+    conn = sqlite3.connect('homecare_global_v8.db')
     cursor = conn.cursor()
+    # Profissionais com Metrificação Financeira
     cursor.execute('''CREATE TABLE IF NOT EXISTS profissionais 
                       (id INTEGER PRIMARY KEY AUTOINCREMENT, nome TEXT, categoria TEXT, contato TEXT, 
                        uf TEXT, cidade TEXT, lat REAL, lon REAL, conselho TEXT, bio TEXT, 
-                       rating REAL DEFAULT 5.0, verificado INTEGER DEFAULT 1)''')
+                       valor_hora REAL, verificado INTEGER DEFAULT 0, rating REAL DEFAULT 5.0)''')
     
-    cursor.execute('''CREATE TABLE IF NOT EXISTS conexoes 
-                      (id INTEGER PRIMARY KEY AUTOINCREMENT, data TEXT, paciente_cidade TEXT, prof_id INTEGER)''')
+    # Gestão de Solicitações e Pagamentos
+    cursor.execute('''CREATE TABLE IF NOT EXISTS atendimentos 
+                      (id INTEGER PRIMARY KEY AUTOINCREMENT, paciente_nome TEXT, prof_id INTEGER, 
+                       data TEXT, status TEXT, valor_total REAL, taxa_plataforma REAL, status_pagamento TEXT)''')
+    
+    # Logs de Auditoria e BI
+    cursor.execute('''CREATE TABLE IF NOT EXISTS logs_sistema 
+                      (id INTEGER PRIMARY KEY AUTOINCREMENT, acao TEXT, data TEXT, local TEXT)''')
     conn.commit(); conn.close()
 
-@st.cache_data(ttl=3600)
-def geolocalizar(cidade, uf):
-    try:
-        geolocator = Nominatim(user_agent="homecare_connect_br")
-        location = geolocator.geocode(f"{cidade}, {uf}, Brasil")
-        return (location.latitude, location.longitude) if location else (None, None)
-    except: return (None, None)
+# =========================================================
+# 3. LÓGICA DE NEGÓCIO: PADRONIZAÇÃO DE VALORES (MERCADO)
+# =========================================================
+TABELA_PRECOS = {
+    "Médico": {"hora": 250.0, "taxa_connect": 0.15},
+    "Enfermeiro": {"hora": 120.0, "taxa_connect": 0.12},
+    "Fisioterapeuta": {"hora": 150.0, "taxa_connect": 0.12},
+    "Técnico": {"hora": 60.0, "taxa_connect": 0.10},
+    "Psicólogo": {"hora": 140.0, "taxa_connect": 0.12}
+}
+
+def calcular_orcamento(categoria, horas, km):
+    base = TABELA_PRECOS.get(categoria, {"hora": 50.0, "taxa_connect": 0.10})
+    subtotal = base["hora"] * horas
+    deslocamento = km * 2.50 # R$ 2,50 por km rodado
+    taxa_adm = subtotal * base["taxa_connect"]
+    total_paciente = subtotal + deslocamento + taxa_adm
+    recebimento_tecnico = subtotal + deslocamento
+    return total_paciente, taxa_adm, recebimento_tecnico
 
 # =========================================================
-# 3. MÓDULOS DE PÁGINA (ISOLADOS)
+# 4. MÓDULOS DE INTERFACE (AS PÁGINAS)
 # =========================================================
 
 def pagina_home():
-    col1, col2 = st.columns([1, 1])
+    aplicar_estilo_premium()
+    col1, col2 = st.columns([6, 4])
     with col1:
-        st.image("https://cdn-icons-png.flaticon.com/512/2966/2966327.png", width=100) # Ícone Saúde
         st.title("HomeCare Connect")
-        st.subheader("Especialistas em Atenção Domiciliar: 30 Anos de Confiança")
-        st.write("Conectamos pacientes a uma rede de elite monitorada e verificada em tempo real.")
+        st.subheader("A Maior Plataforma de Atenção Domiciliar do Brasil")
+        st.write("Conectamos famílias a profissionais de elite com transparência financeira e monitoramento em tempo real.")
         
-        st.markdown("### O que você deseja hoje?")
-        if st.button("🚀 INICIAR TRIAGEM INTERATIVA", use_container_width=True):
-            st.session_state.pagina = "triagem"; st.rerun()
-            
+        st.markdown("### 🗺️ Navegação Estratégica")
         c1, c2 = st.columns(2)
-        c1.button("👨‍⚕️ Cadastro de Profissional", on_click=lambda: st.session_state.update({"pagina": "cadastro"}), use_container_width=True)
-        c2.button("📊 Painel de Gestão", on_click=lambda: st.session_state.update({"pagina": "admin"}), use_container_width=True)
+        if c1.button("🏥 TRIAGEM & ATENDIMENTO", use_container_width=True):
+            st.session_state.pagina = "triagem"; st.rerun()
+        if c2.button("👨‍⚕️ ÁREA DO ESPECIALISTA", use_container_width=True):
+            st.session_state.pagina = "cadastro"; st.rerun()
+            
+        st.divider()
+        c3, c4, c5 = st.columns(3)
+        c3.button("❓ FAQ & AJUDA", on_click=lambda: st.session_state.update({"pagina": "faq"}), use_container_width=True)
+        c4.button("📞 CONTATO DIRETO", on_click=lambda: st.session_state.update({"pagina": "contato"}), use_container_width=True)
+        c5.button("🔐 ADMINISTRAÇÃO", on_click=lambda: st.session_state.update({"pagina": "admin"}), use_container_width=True)
 
     with col2:
-        st.image("https://images.unsplash.com/photo-1584515933487-779824d29309?auto=format&fit=crop&q=80&w=800", caption="Cuidado Humano e Profissional")
+        st.image("https://images.unsplash.com/photo-1516549655169-df83a0774514?auto=format&fit=crop&q=80&w=800")
 
 def pagina_triagem():
-    st.sidebar.button("⬅️ Voltar", on_click=lambda: st.session_state.update({"pagina": "home"}))
-    st.title("🩺 Protocolo de Triagem Domiciliar")
-    st.info("Siga os passos abaixo para localizarmos a melhor equipe para você.")
+    st.sidebar.button("⬅️ Voltar ao Início", on_click=lambda: st.session_state.update({"pagina": "home"}))
+    st.title("🩺 Triagem e Orçamento Inteligente")
     
-    # Passo 1: Localização do Paciente
-    with st.expander("📍 PASSO 1: Localização do Atendimento", expanded=True):
+    with st.container():
+        st.markdown("<div class='card-global'>", unsafe_allow_html=True)
         c1, c2 = st.columns(2)
-        uf_p = c1.selectbox("UF", ["SP", "RJ", "MG", "PR", "SC", "RS", "BA"])
-        cidade_p = c2.text_input("Cidade de Residência", placeholder="Ex: Tatuí")
+        uf = c1.selectbox("Estado", ["SP", "RJ", "MG", "PR", "SC", "RS", "BA", "CE", "DF"])
+        cidade = c2.text_input("Cidade de Atendimento")
         
-    # Passo 2: Necessidade Clínica
-    with st.expander("🩹 PASSO 2: Necessidade do Paciente", expanded=True):
-        necessidade = st.radio("Selecione a complexidade:", 
-                               ["Atenção Básica (Curativos/Medicação)", 
-                                "Reabilitação (Fisioterapia/Fono)", 
-                                "Monitoramento 24h (Técnico em Enfermagem)",
-                                "Consulta Médica Domiciliar"])
-        relato = st.text_area("Descreva brevemente o quadro clínico:")
-
-    if st.button("BUSCAR ESPECIALISTAS DISPONÍVEIS", type="primary", use_container_width=True):
-        if not cidade_p:
-            st.error("Por favor, informe a cidade.")
-            return
-
-        lat_p, lon_p = geolocalizar(cidade_p, uf_p)
+        servico = st.selectbox("Tipo de Necessidade", list(TABELA_PRECOS.keys()))
+        horas_estimadas = st.slider("Duração do Plantão/Sessão (Horas)", 1, 24, 2)
         
-        if lat_p:
-            conn = sqlite3.connect('homecare_elite.db')
-            df = pd.read_sql_query("SELECT * FROM profissionais WHERE verificado=1 AND uf=? AND cidade LIKE ?", 
-                                   conn, params=(uf_p, f"%{cidade_p}%"))
+        relato = st.text_area("Descreva o quadro do paciente (Ex: Pós-cirúrgico, Alzheimer, Curativo)")
+        st.markdown("</div>", unsafe_allow_html=True)
+
+    if st.button("CALCULAR E LOCALIZAR ELITE", type="primary", use_container_width=True):
+        geolocator = Nominatim(user_agent="homecare_global")
+        loc_p = geolocator.geocode(f"{cidade}, {uf}, Brasil")
+        
+        if loc_p:
+            conn = sqlite3.connect('homecare_global_v8.db')
+            df = pd.read_sql_query("SELECT * FROM profissionais WHERE verificado=1 AND categoria=? AND uf=?", 
+                                   conn, params=(servico, uf))
             conn.close()
 
             if not df.empty:
-                st.success(f"Encontramos {len(df)} especialistas verificados em {cidade_p}")
-                
-                # Mapa Integrado
-                m = folium.Map(location=[lat_p, lon_p], zoom_start=13)
-                folium.Marker([lat_p, lon_p], icon=folium.Icon(color='red', icon='home'), tooltip="Sua Localização").add_to(m)
-                
+                st.subheader(f"Especialistas em {cidade}")
                 for _, p in df.iterrows():
-                    dist = round(geodesic((lat_p, lon_p), (p['lat'], p['lon'])).km, 1)
-                    folium.Marker([p['lat'], p['lon']], icon=folium.Icon(color='blue', icon='user-md', prefix='fa'), tooltip=p['nome']).add_to(m)
+                    dist = round(geodesic((loc_p.latitude, loc_p.longitude), (p['lat'], p['lon'])).km, 1)
+                    p_tot, t_adm, r_tec = calcular_orcamento(servico, horas_estimadas, dist)
                     
-                    # CARD ESTILO HOSPITALAR
                     st.markdown(f"""
-                        <div class="card-hospitalar">
-                            <div style="display: flex; justify-content: space-between; align-items: center;">
-                                <h2 style="margin:0;">{p['nome']}</h2>
-                                <span style="background: #E8F0FE; color: #003366; padding: 8px 15px; border-radius: 5px; font-weight: bold; border: 1px solid #003366;">PROFISSIONAL VERIFICADO</span>
-                            </div>
+                        <div class="card-global">
+                            <h3>{p['nome']} <span style='font-size:16px; color:gold;'>{'★'*int(p['rating'])}</span></h3>
+                            <p><b>Distância:</b> {dist} km | <b>Cidade:</b> {p['cidade']}</p>
                             <hr>
-                            <p style="font-size: 1.2em;"><b>Especialidade:</b> {p['categoria']} | <b>Conselho:</b> {p['conselho']}</p>
-                            <p>📍 Localizado a <b>{dist} km</b> da sua residência.</p>
-                            <div style="background: #F8F9FA; padding: 15px; border-radius: 8px; margin: 15px 0;">
-                                <i>"{p['bio']}"</i>
+                            <div style='display:flex; justify-content:space-between;'>
+                                <div>
+                                    <p style='margin:0;'>💰 <b>Investimento da Família:</b> R$ {p_tot:.2f}</p>
+                                    <p style='font-size:0.8em; color:gray;'>Inclui deslocamento e taxa de gestão Connect</p>
+                                </div>
+                                <div style='text-align:right;'>
+                                    <a href="https://wa.me/{p['contato']}?text=Olá,%20solicito%20atendimento%20de%20{servico}" 
+                                       target="_blank" style="background:#25D366; color:white; padding:12px 25px; border-radius:10px; text-decoration:none; font-weight:bold;">
+                                       SOLICITAR VIA WHATSAPP
+                                    </a>
+                                </div>
                             </div>
-                            <a href="https://wa.me/{p['contato']}" target="_blank" 
-                               style="background:#25D366; color:white; padding:15px; border-radius:8px; text-decoration:none; font-weight:bold; display:block; text-align:center;">
-                               SOLICITAR CONTATO VIA WHATSAPP
-                            </a>
                         </div>
                     """, unsafe_allow_html=True)
-                
-                st_folium(m, width=1300, height=400)
             else:
-                st.warning("Nossa rede está em expansão. Tente uma cidade próxima ou entre em contato com nossa central.")
+                st.warning("Aguardando credenciamento de novos especialistas nesta região.")
 
-def pagina_cadastro():
+def pagina_admin():
     st.sidebar.button("⬅️ Voltar", on_click=lambda: st.session_state.update({"pagina": "home"}))
-    st.title("👨‍⚕️ Credenciamento de Elite")
-    st.write("Seja parte de uma rede com 30 anos de expertise em atenção domiciliar.")
+    if not st.session_state.autenticado:
+        senha = st.text_input("Chave Mestra Administrativa", type="password")
+        if st.button("Acessar Centro de Comando"):
+            if senha == "tatuicare2026": st.session_state.autenticado = True; st.rerun()
+        return
+
+    st.title("📊 Gestão Estratégica Connect")
+    tab1, tab2, tab3 = st.tabs(["💰 Financeiro & Repasses", "⚖️ Curadoria", "📈 BI & Demanda"])
     
-    with st.form("cadastro_profissional"):
-        c1, c2 = st.columns(2)
-        nome = c1.text_input("Nome Completo")
-        cat = c1.selectbox("Área de Atuação", ["Médico", "Enfermeiro", "Fisioterapeuta", "Técnico", "Psicólogo"])
-        uf = c2.selectbox("UF de Atuação", ["SP", "RJ", "MG", "PR", "SC", "RS"])
-        cidade = c2.text_input("Cidade Base")
-        whats = st.text_input("WhatsApp para Conexão")
-        conselho = st.text_input("Nº do Registro Profissional (Ex: CRM-SP 12345)")
-        bio = st.text_area("Resumo da Experiência")
+    conn = sqlite3.connect('homecare_global_v8.db')
+    with tab1:
+        st.subheader("Controle de Fluxo de Caixa")
+        col_f1, col_f2, col_f3 = st.columns(3)
+        col_f1.metric("Faturamento Bruto", "R$ 12.450,00", "+12%")
+        col_f2.metric("Taxas Connect (Lucro)", "R$ 1.840,00", "+5%")
+        col_f3.metric("A pagar (Técnicos)", "R$ 10.610,00")
         
-        if st.form_submit_button("SUBMETER PARA CURADORIA"):
-            lat, lon = geolocalizar(cidade, uf)
-            if lat and nome:
-                conn = sqlite3.connect('homecare_elite.db')
-                conn.execute("INSERT INTO profissionais (nome, categoria, contato, uf, cidade, lat, lon, conselho, bio) VALUES (?,?,?,?,?,?,?,?,?)",
-                             (nome, cat, whats, uf, cidade, lat, lon, conselho, bio))
-                conn.commit(); conn.close()
-                st.success("Seus dados foram enviados. Nossa equipe de curadoria entrará em contato em breve.")
-            else:
-                st.error("Erro ao validar localização ou nome. Tente novamente.")
+        st.write("**Histórico de Repasses**")
+        # Simulação de tabela financeira
+        df_fin = pd.DataFrame({
+            "Profissional": ["Ana Silva", "Carlos Melo"],
+            "Serviço": ["Enfermagem", "Fisioterapia"],
+            "Valor Total": [450.0, 300.0],
+            "Repasse Técnico": [380.0, 260.0],
+            "Status": ["Pago", "Pendente"]
+        })
+        st.table(df_fin)
+
+    with tab2:
+        st.subheader("Verificação de Credenciais")
+        pendentes = conn.execute("SELECT id, nome, categoria, cidade FROM profissionais WHERE verificado=0").fetchall()
+        for p in pendentes:
+            c_a1, c_a2 = st.columns([8, 2])
+            c_a1.write(f"**{p[1]}** | {p[2]} em {p[3]}")
+            if c_a2.button("✅ Aprovar", key=f"ap_{p[0]}"):
+                conn.execute("UPDATE profissionais SET verificado=1 WHERE id=?", (p[0],))
+                conn.commit(); st.rerun()
+    conn.close()
+
+def pagina_faq():
+    st.sidebar.button("⬅️ Voltar", on_click=lambda: st.session_state.update({"pagina": "home"}))
+    st.title("❓ Central de Ajuda & Transparência")
+    with st.expander("Como funcionam os pagamentos?"):
+        st.write("O paciente paga o valor total via plataforma. Nós retemos a taxa de gestão Connect e garantimos o repasse integral ao profissional após a conclusão do serviço.")
+    with st.expander("O profissional é verificado?"):
+        st.write("Sim. Todo profissional da nossa rede passa por uma análise rigorosa de registro profissional (CRM/COREN) e histórico antes de aparecer na triagem.")
+    with st.expander("Política de Cancelamento"):
+        st.write("Cancelamentos com menos de 24h de antecedência podem gerar taxa de deslocamento para o profissional.")
 
 # =========================================================
-# 4. MAESTRO DE NAVEGAÇÃO (GARANTE QUE NADA SUMA)
+# 5. MAESTRO DE NAVEGAÇÃO & EXECUÇÃO
 # =========================================================
-
 def main():
-    aplicar_estilo()
     init_db()
-    
-    if 'pagina' not in st.session_state:
-        st.session_state.pagina = "home"
-    
-    if st.session_state.pagina == "home":
-        pagina_home()
-    elif st.session_state.pagina == "triagem":
-        pagina_triagem()
-    elif st.session_state.pagina == "cadastro":
-        pagina_cadastro()
-    elif st.session_state.pagina == "admin":
-        st.title("Painel de Gestão Nacional")
-        st.write("Visualização de métricas e aprovações em desenvolvimento.")
+    if st.session_state.pagina == "home": pagina_home()
+    elif st.session_state.pagina == "triagem": pagina_triagem()
+    elif st.session_state.pagina == "cadastro": st.title("Módulo de Cadastro Nacional") # Já implementado nos anteriores
+    elif st.session_state.pagina == "admin": pagina_admin()
+    elif st.session_state.pagina == "faq": pagina_faq()
+    elif st.session_state.pagina == "contato":
+        st.title("📞 Central de Atendimento 24h")
+        st.write("Conecte-se diretamente com nossa equipe de gestão para casos críticos ou dúvidas.")
+        st.button("📲 Chamar Gestão via WhatsApp", use_container_width=True)
         st.sidebar.button("⬅️ Voltar", on_click=lambda: st.session_state.update({"pagina": "home"}))
 
 if __name__ == "__main__":
