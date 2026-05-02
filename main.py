@@ -141,9 +141,77 @@ def mostrar_admin():
         conn.close()
 
 def mostrar_triagem():
-    st.sidebar.button("⬅️ Voltar", on_click=lambda: st.session_state.update({"pagina": "home"}))
+    with st.sidebar:
+        if st.button("⬅️ Voltar ao Início"):
+            st.session_state.pagina = "home"
+            st.rerun()
+    
     st.title("🩺 Triagem Inteligente")
-    st.info("Sistema pronto para análise de casos.")
+    st.write("Nossa IA analisará o caso para conectar você ao profissional verificado mais adequado.")
+
+    relato = st.text_area("Descreva o quadro do paciente:", height=150, 
+                          placeholder="Ex: Idoso com dificuldade de locomoção após cirurgia no fêmur...")
+
+    if st.button("Analisar e Localizar Especialistas"):
+        if relato:
+            with st.spinner("IA avaliando necessidades clínicas..."):
+                try:
+                    # Configuração da IA Gemini
+                    genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
+                    model = genai.GenerativeModel('gemini-pro')
+                    
+                    prompt = f"""
+                    Aja como um triador de home care experiente. Analise: '{relato}'
+                    Retorne APENAS um JSON com os campos:
+                    'categoria': (Medico, Enfermeiro, Tecnico, Fisioterapeuta, Psicologo),
+                    'urgencia': (Baixa, Media, Alta),
+                    'resumo': (Uma frase acolhedora orientando a família).
+                    """
+                    
+                    response = model.generate_content(prompt)
+                    res = json.loads(response.text.replace('
+```json', '').replace('```', '').strip())
+                    
+                    st.divider()
+                    st.subheader(f"📍 Recomendação: {res['categoria']}")
+                    st.info(f"**Análise da IA:** {res['resumo']}")
+
+                    # Busca no Banco de Dados - APENAS VERIFICADOS
+                    conn = sqlite3.connect('homecare_v2.db')
+                    cursor = conn.cursor()
+                    # O segredo está no 'verificado = 1'
+                    cursor.execute("""SELECT nome, categoria, contato, cidade, conselho, bio, experiencia 
+                                      FROM profissionais 
+                                      WHERE categoria=? AND verificado=1""", (res['categoria'],))
+                    pros = cursor.fetchall()
+                    conn.close()
+
+                    if pros:
+                        st.write(f"### Encontramos {len(pros)} especialista(s) verificado(s):")
+                        for p in pros:
+                            with st.container():
+                                st.markdown(f"""
+                                <div style="background: white; padding: 25px; border-radius: 15px; border-left: 10px solid #1A3A5A; box-shadow: 0 4px 15px rgba(0,0,0,0.1); margin-bottom: 20px;">
+                                    <span style="background: #28a745; color: white; padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: bold;">✅ PROFISSIONAL VERIFICADO</span>
+                                    <h2 style="margin: 10px 0 5px 0; color: #1A3A5A;">{p[0]}</h2>
+                                    <p style="color: #666; font-weight: bold; margin-bottom: 15px;">{p[1]} | {p[4]} | 📍 {p[3]}</p>
+                                    <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+                                        <p style="font-size: 14px; color: #444;"><b>Sobre:</b> {p[5]}</p>
+                                        <p style="font-size: 14px; color: #444; margin-top: 5px;"><b>Experiência:</b> {p[6]}</p>
+                                    </div>
+                                    <a href="https://wa.me/{p[2]}" target="_blank" 
+                                       style="background: #25D366; color: white !important; padding: 12px 25px; border-radius: 8px; text-decoration: none; font-weight: bold; display: inline-block;">
+                                       Agendar via WhatsApp
+                                    </a>
+                                </div>
+                                """, unsafe_allow_html=True)
+                    else:
+                        st.warning(f"A IA recomendou um especialista em **{res['categoria']}**, mas ainda não temos profissionais verificados nesta categoria na sua região.")
+                
+                except Exception as e:
+                    st.error("Erro na análise. Verifique se o relato está claro ou sua chave API.")
+        else:
+            st.warning("Por favor, descreva o caso para a análise.")
 
 # NAVEGAÇÃO
 if st.session_state.pagina == "home": mostrar_home()
