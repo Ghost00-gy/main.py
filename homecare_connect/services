@@ -1,1 +1,32 @@
+import stripe
+from app.core.config import settings
 
+stripe.api_key = settings.STRIPE_SECRET_KEY
+
+class FinanceService:
+    @staticmethod
+    def processar_split(valor_total: float, categoria: str):
+        """
+        Lógica de comissionamento padrão nacional.
+        Retém a taxa da plataforma antes do repasse.
+        """
+        taxas = {"Medico": 0.15, "Enfermeiro": 0.12, "Tecnico": 0.10}
+        percentual_plataforma = taxas.get(categoria, 0.12)
+        
+        taxa_plataforma = valor_total * percentual_plataforma
+        valor_repasse = valor_total - taxa_plataforma
+        
+        return {
+            "total": valor_total,
+            "plataforma": taxa_plataforma,
+            "especialista": valor_repasse
+        }
+
+class IAService:
+    @staticmethod
+    async def triagem_inteligente(relato_paciente: str):
+        """
+        Analisa o relato clínico e sugere a especialidade e urgência.
+        """
+        # Integração com Gemini/OpenAI aqui
+        pass
