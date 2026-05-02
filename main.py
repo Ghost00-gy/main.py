@@ -159,7 +159,7 @@ def mostrar_triagem():
             with st.spinner("IA analisando..."):
                 try:
                     genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
-                    model = genai.GenerativeModel('models/gemini-1.5-flash-latest')
+                    model = genai.GenerativeModel('gemini-1.5-flash')
                     
                     prompt = f"Analise: '{relato}'. Retorne APENAS JSON: {{\"categoria\": \"...\", \"urgencia\": \"...\", \"resumo\": \"...\"}}"
                     
