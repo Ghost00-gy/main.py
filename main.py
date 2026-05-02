@@ -158,7 +158,7 @@ def mostrar_triagem():
                 try:
                     # 1. Configuração da IA Gemini
                     genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
-                    model = genai.GenerativeModel('gemini-1.5-flash')
+                    model = genai.GenerativeModel('models/gemini-1.5-flash-latest')
                     
                     # Prompt ultra-específico para evitar lixo no JSON
                     prompt = f"""
