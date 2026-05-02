@@ -105,37 +105,61 @@ def mostrar_admin():
 
 def mostrar_triagem():
     st.sidebar.button("⬅️ Voltar", on_click=lambda: st.session_state.update({"pagina": "home"}))
-    st.title("🩺 Triagem Inteligente")
-    relato = st.text_area("Descreva o caso:")
+    st.title("🩺 Triagem Inteligente (Local)")
+    
+    # Nossa base de conhecimento "offline"
+    BASE_CUIDADOS = {
+        "coracao": {
+            "categoria": "Enfermeiro",
+            "orientacao": "Cuidados pós-cirúrgicos cardíacos exigem monitoramento de sinais vitais e curativos estéreis."
+        },
+        "femur": {
+            "categoria": "Fisioterapeuta",
+            "orientacao": "Pós-operatório de fêmur exige mobilização precoce e prevenção de escaras por imobilidade."
+        },
+        "idoso": {
+            "categoria": "Tecnico",
+            "orientacao": "Auxílio em higiene, alimentação e administração de medicamentos de rotina."
+        },
+        "limpeza": {
+            "categoria": "Enfermeiro",
+            "orientacao": "Higienização de feridas e troca de curativos complexos devem ser feitos por enfermagem."
+        }
+    }
+
+    relato = st.text_area("Descreva o caso (ex: coração, fêmur, idoso):").lower()
+    
     if st.button("Analisar"):
         if relato:
-            with st.spinner("Conectando à rede de IA..."):
-                try:
-                    genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
-                    # REDUNDÂNCIA: Tenta o modelo flash, se falhar, usa o pro
-                    try:
-                        model = genai.GenerativeModel('gemini-1.5-flash')
-                        response = model.generate_content(f"Analise e retorne apenas JSON: {relato}")
-                    except:
-                        model = genai.GenerativeModel('gemini-pro')
-                        response = model.generate_content(f"Analise e retorne apenas JSON: {relato}")
+            # Busca por palavras-chave no relato do usuário
+            achou = False
+            for chave in BASE_CUIDADOS:
+                if chave in relato:
+                    recomendacao = BASE_CUIDADOS[chave]
+                    st.success(f"✅ Recomendação: {recomendacao['categoria']}")
+                    st.info(f"💡 Orientação: {recomendacao['orientacao']}")
                     
-                    texto = response.text.replace('```json', '').replace('```', '').strip()
-                    res = json.loads(texto)
-                    
-                    st.success(f"Recomendação: {res.get('categoria', 'Enfermeiro')}")
-                    
+                    # Busca profissionais no seu banco de dados que você já aprovou
                     conn = sqlite3.connect('homecare_v2.db')
                     cursor = conn.cursor()
-                    cursor.execute("SELECT nome, contato FROM profissionais WHERE verificado=1 AND categoria=?", (res.get('categoria'),))
+                    cursor.execute("SELECT nome, contato FROM profissionais WHERE verificado=1 AND categoria=?", (recomendacao['categoria'],))
                     encontrados = cursor.fetchall()
                     conn.close()
                     
-                    for e in encontrados:
-                        st.info(f"Profissional: {e[0]} - WhatsApp: {e[1]}")
-                except Exception as ex:
-                    st.error(f"Erro na conexão. Tente novamente em instantes.")
-        else: st.warning("Descreva o caso.")
+                    if encontrados:
+                        st.write("### Profissionais Disponíveis em Tatuí:")
+                        for e in encontrados:
+                            st.warning(f"👤 {e[0]} - 📱 WhatsApp: {e[1]}")
+                    else:
+                        st.warning(f"Não temos {recomendacao['categoria']} aprovados no momento.")
+                    
+                    achou = True
+                    break
+            
+            if not achou:
+                st.warning("Não encontramos uma recomendação exata. Tente palavras como 'coração', 'fêmur' ou 'idoso'.")
+        else:
+            st.warning("Descreva o caso para análise.")
 
 # NAVEGAÇÃO
 if st.session_state.pagina == "home": mostrar_home()
