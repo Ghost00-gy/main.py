@@ -167,10 +167,9 @@ def mostrar_triagem():
                     response = model.generate_content(prompt)
                     raw_res = response.text.strip()
                     
-                    # Limpeza de JSON
+                    # Limpeza de JSON simplificada para evitar SyntaxError
                     if "```json" in raw_res:
-                        raw_res = raw_res.split("```json")[1].split("
-```")[0]
+                        raw_res = raw_res.split("```json")[1].split("```")[0]
                     elif "```" in raw_res:
                         raw_res = raw_res.split("```")[1].split("```")[0]
                     
