@@ -1,1 +1,17 @@
+from fastapi import APIRouter, Depends
+from app.services.finance import FinanceService
+from app.schemas.atendimento import AtendimentoCreate
 
+router = APIRouter()
+
+@router.post("/solicitar-atendimento")
+async def criar_solicitacao(dados: AtendimentoCreate):
+    # 1. Calcula Split Financeiro
+    financeiro = FinanceService.processar_split(dados.valor_bruto, dados.categoria)
+    
+    # 2. Registra Intenção de Pagamento no Gateway (Stripe/Iugu)
+    # 3. Notifica Especialista via WhatsApp API
+    return {
+        "status": "Aguardando confirmação do especialista",
+        "orcamento": financeiro
+    }
