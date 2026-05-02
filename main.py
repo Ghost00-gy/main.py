@@ -130,11 +130,23 @@ def mostrar_admin():
                     <small>{p[3]} - {p[4]}</small>
                 </div>
                 """, unsafe_allow_html=True)
-                if p[5] == 0:
-                    if st.button(f"Aprovar {p[1]}", key=f"v_{p[0]}"):
-                        cursor.execute("UPDATE profissionais SET verificado = 1 WHERE id = ?", (p[0],))
-                        conn.commit()
-                        st.rerun()
+
+if p[5] == 0:  # Se o profissional estiver pendente
+    if st.button(f"Aprovar {p[1]}", key=f"btn_{p[0]}"):
+        c = sqlite3.connect('homecare_v2.db')
+        c.execute("UPDATE profissionais SET verificado = 1 WHERE id = ?", (p[0],))
+        c.commit()
+        c.close()
+        st.success(f"Profissional {p[1]} aprovado!")
+        st.rerun()
+
+if st.button(f"🗑️ Excluir {p[1]}", key=f"del_{p[0]}"):
+    c = sqlite3.connect('homecare_v2.db')
+    c.execute("DELETE FROM profissionais WHERE id = ?", (p[0],))
+    c.commit()
+    c.close()
+    st.warning(f"Cadastro de {p[1]} removido.")
+    st.rerun()
     except:
         st.warning("Estruturando banco de dados... Por favor, clique no botão novamente.")
     finally:
