@@ -160,17 +160,13 @@ def mostrar_triagem():
                     genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
                     model = genai.GenerativeModel('gemini-pro')
                     
-                    prompt = f"""
-                    Aja como um triador de home care experiente. Analise: '{relato}'
-                    Retorne APENAS um JSON com os campos:
-                    'categoria': (Medico, Enfermeiro, Tecnico, Fisioterapeuta, Psicologo),
-                    'urgencia': (Baixa, Media, Alta),
-                    'resumo': (Uma frase acolhedora orientando a família).
-                    """
+                    prompt = f"Analise o relato: '{relato}'. Retorne APENAS um JSON com os campos: 'categoria' (Medico, Enfermeiro, Tecnico, Fisioterapeuta, Psicologo), 'urgencia' (Baixa, Media, Alta), 'resumo' (uma frase de orientação)."
                     
                     response = model.generate_content(prompt)
-                    res = json.loads(response.text.replace('
-```json', '').replace('```', '').strip())
+                    
+                    # Limpeza segura do JSON
+                    texto_limpo = response.text.replace('```json', '').replace('```', '').strip()
+                    res = json.loads(texto_limpo)
                     
                     st.divider()
                     st.subheader(f"📍 Recomendação: {res['categoria']}")
@@ -179,7 +175,6 @@ def mostrar_triagem():
                     # Busca no Banco de Dados - APENAS VERIFICADOS
                     conn = sqlite3.connect('homecare_v2.db')
                     cursor = conn.cursor()
-                    # O segredo está no 'verificado = 1'
                     cursor.execute("""SELECT nome, categoria, contato, cidade, conselho, bio, experiencia 
                                       FROM profissionais 
                                       WHERE categoria=? AND verificado=1""", (res['categoria'],))
@@ -199,19 +194,19 @@ def mostrar_triagem():
                                         <p style="font-size: 14px; color: #444;"><b>Sobre:</b> {p[5]}</p>
                                         <p style="font-size: 14px; color: #444; margin-top: 5px;"><b>Experiência:</b> {p[6]}</p>
                                     </div>
-                                    <a href="https://wa.me/{p[2]}" target="_blank" 
+                                    <a href="[https://wa.me/](https://wa.me/){p[2]}" target="_blank" 
                                        style="background: #25D366; color: white !important; padding: 12px 25px; border-radius: 8px; text-decoration: none; font-weight: bold; display: inline-block;">
                                        Agendar via WhatsApp
                                     </a>
                                 </div>
                                 """, unsafe_allow_html=True)
                     else:
-                        st.warning(f"A IA recomendou um especialista em **{res['categoria']}**, mas ainda não temos profissionais verificados nesta categoria na sua região.")
+                        st.warning(f"A IA recomendou um especialista em {res['categoria']}, mas não há profissionais verificados disponíveis no momento.")
                 
                 except Exception as e:
-                    st.error("Erro na análise. Verifique se o relato está claro ou sua chave API.")
+                    st.error("Erro no processamento. Certifique-se de que o relato é claro.")
         else:
-            st.warning("Por favor, descreva o caso para a análise.")
+            st.warning("Por favor, descreva o caso.")
 
 # NAVEGAÇÃO
 if st.session_state.pagina == "home": mostrar_home()
