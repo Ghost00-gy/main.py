@@ -107,7 +107,6 @@ def mostrar_admin():
     conn = sqlite3.connect('homecare_v2.db')
     cursor = conn.cursor()
     
-    # Proteção contra erro de leitura caso o banco demore a atualizar
     try:
         total = cursor.execute("SELECT COUNT(*) FROM profissionais").fetchone()[0]
         pendentes = cursor.execute("SELECT COUNT(*) FROM profissionais WHERE verificado = 0").fetchone()[0]
@@ -130,25 +129,27 @@ def mostrar_admin():
                     <small>{p[3]} - {p[4]}</small>
                 </div>
                 """, unsafe_allow_html=True)
-
-if p[5] == 0:  # Se o profissional estiver pendente
-    if st.button(f"Aprovar {p[1]}", key=f"btn_{p[0]}"):
-        c = sqlite3.connect('homecare_v2.db')
-        c.execute("UPDATE profissionais SET verificado = 1 WHERE id = ?", (p[0],))
-        c.commit()
-        c.close()
-        st.success(f"Profissional {p[1]} aprovado!")
-        st.rerun()
-
-if st.button(f"🗑️ Excluir {p[1]}", key=f"del_{p[0]}"):
-    c = sqlite3.connect('homecare_v2.db')
-    c.execute("DELETE FROM profissionais WHERE id = ?", (p[0],))
-    c.commit()
-    c.close()
-    st.warning(f"Cadastro de {p[1]} removido.")
-    st.rerun()
-    except:
-        st.warning("Estruturando banco de dados... Por favor, clique no botão novamente.")
+                
+                col_btn1, col_btn2 = st.columns([1, 1])
+                
+                with col_btn1:
+                    if p[5] == 0:  # Se estiver pendente, mostra o botão de aprovar
+                        if st.button(f"Aprovar {p[1]}", key=f"btn_{p[0]}"):
+                            c = sqlite3.connect('homecare_v2.db')
+                            c.execute("UPDATE profissionais SET verificado = 1 WHERE id = ?", (p[0],))
+                            c.commit(); c.close()
+                            st.success("Aprovado!")
+                            st.rerun()
+                
+                with col_btn2:
+                    if st.button(f"🗑️ Excluir {p[1]}", key=f"del_{p[0]}"):
+                        c = sqlite3.connect('homecare_v2.db')
+                        c.execute("DELETE FROM profissionais WHERE id = ?", (p[0],))
+                        c.commit(); c.close()
+                        st.warning("Removido!")
+                        st.rerun()
+    except Exception as e:
+        st.warning(f"Erro ao carregar dados: {e}")
     finally:
         conn.close()
 
@@ -168,30 +169,18 @@ def mostrar_triagem():
         if relato:
             with st.spinner("IA avaliando necessidades clínicas..."):
                 try:
-                    # 1. Configuração da IA Gemini
                     genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
                     model = genai.GenerativeModel('models/gemini-1.5-flash-latest')
                     
-                    # Prompt ultra-específico para evitar lixo no JSON
-                    prompt = f"""
-                    Analise este relato de saúde: '{relato}'
-                    Responda RIGOROSAMENTE apenas um objeto JSON (sem markdown, sem texto antes ou depois):
-                    {{
-                        "categoria": "Medico" ou "Enfermeiro" ou "Tecnico" ou "Fisioterapeuta" ou "Psicologo",
-                        "urgencia": "Baixa" ou "Media" ou "Alta",
-                        "resumo": "Uma orientação curta."
-                    }}
-                    """
+                    prompt = f"Analise este relato: '{relato}'. Responda APENAS um objeto JSON: {{\"categoria\": \"Medico\" ou \"Enfermeiro\" ou \"Tecnico\" ou \"Fisioterapeuta\" ou \"Psicologo\", \"urgencia\": \"Baixa/Media/Alta\", \"resumo\": \"frase curta\"}}"
                     
                     response = model.generate_content(prompt)
-                    
-                    # 2. Limpeza Avançada de JSON
-                    # Remove possíveis marcações de markdown ```json que a IA costuma colocar
                     raw_res = response.text.strip()
-                    if raw_res.startswith("```"):
-                        raw_res = raw_res.split("```")[1]
-                        if raw_res.startswith("json"):
-                            raw_res = raw_res[4:]
+                    if "
+```json" in raw_res:
+                        raw_res = raw_res.split("```json")[1].split("```")[0]
+                    elif "```" in raw_res:
+                        raw_res = raw_res.split("```")[1].split("```")[0]
                     
                     res = json.loads(raw_res.strip())
                     
@@ -199,11 +188,8 @@ def mostrar_triagem():
                     st.subheader(f"📍 Recomendação: {res['categoria']}")
                     st.info(f"**Análise da IA:** {res['resumo']}")
 
-                    # 3. Busca no Banco de Dados - APENAS VERIFICADOS
                     conn = sqlite3.connect('homecare_v2.db')
                     cursor = conn.cursor()
-                    
-                    # Importante: Categoria deve bater exatamente com o que a IA mandou
                     cursor.execute("""SELECT nome, categoria, contato, cidade, conselho, bio, experiencia 
                                       FROM profissionais 
                                       WHERE categoria=? AND verificado=1""", (res['categoria'],))
@@ -223,19 +209,17 @@ def mostrar_triagem():
                                         <p style="font-size: 14px; color: #444;"><b>Sobre:</b> {p[5]}</p>
                                         <p style="font-size: 14px; color: #444; margin-top: 5px;"><b>Experiência:</b> {p[6]}</p>
                                     </div>
-                                    <a href="[https://wa.me/](https://wa.me/){p[2]}" target="_blank" 
+                                    <a href="https://wa.me/{p[2]}" target="_blank" 
                                        style="background: #25D366; color: white !important; padding: 12px 25px; border-radius: 8px; text-decoration: none; font-weight: bold; display: inline-block;">
                                        Agendar via WhatsApp
                                     </a>
                                 </div>
                                 """, unsafe_allow_html=True)
                     else:
-                        st.warning(f"A IA recomendou um especialista em **{res['categoria']}**, mas você ainda não aprovou nenhum profissional desta categoria no Painel de Controle.")
+                        st.warning(f"Nenhum {res['categoria']} verificado no momento.")
                 
                 except Exception as e:
-                    # AGORA O ERRO VAI APARECER AQUI PARA SABERMOS O QUE É
                     st.error(f"Erro técnico: {str(e)}")
-                    st.write("Dica: Verifique se o formato do seu banco de dados está correto e se os profissionais estão marcados como 'Aprovado'.")
         else:
             st.warning("Por favor, descreva o caso.")
 
