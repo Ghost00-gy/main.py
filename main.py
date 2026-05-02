@@ -149,15 +149,8 @@ def mostrar_admin():
         conn.close()
 
 def mostrar_triagem():
-   if st.button("Analisar e Localizar Especialistas"):
-    if relato:
-        with st.spinner("IA analisando..."):
-            try:
-                # Força a configuração da API estável
-                genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
-                
-                # Mudança estratégica: usamos apenas 'gemini-1.5-flash'
-                model = genai.GenerativeModel(model_name='gemini-1.5-flash')
+    st.sidebar.button("⬅️ Voltar", on_click=lambda: st.session_state.update({"pagina": "home"}))
+    st.title("🩺 Triagem Inteligente")
     
     relato = st.text_area("Descreva o quadro do paciente:", height=150)
 
@@ -165,17 +158,19 @@ def mostrar_triagem():
         if relato:
             with st.spinner("IA analisando..."):
                 try:
+                    # Configuração para Python 3.11 e API estável
                     genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
                     model = genai.GenerativeModel('gemini-1.5-flash')
                     
-                    prompt = f"Analise: '{relato}'. Retorne APENAS JSON: {{\"categoria\": \"...\", \"urgencia\": \"...\", \"resumo\": \"...\"}}"
+                    prompt = f"Analise: '{relato}'. Retorne APENAS JSON: {{\"categoria\": \"Medico/Enfermeiro/Tecnico/Fisioterapeuta/Psicologo\", \"urgencia\": \"Baixa/Media/Alta\", \"resumo\": \"frase curta\"}}"
                     
                     response = model.generate_content(prompt)
                     raw_res = response.text.strip()
                     
-                    # Limpeza de JSON corrigida
+                    # Limpeza de JSON
                     if "```json" in raw_res:
-                        raw_res = raw_res.split("```json")[1].split("```")[0]
+                        raw_res = raw_res.split("```json")[1].split("
+```")[0]
                     elif "```" in raw_res:
                         raw_res = raw_res.split("```")[1].split("```")[0]
                     
