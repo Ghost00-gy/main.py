@@ -156,25 +156,42 @@ def mostrar_triagem():
         if relato:
             with st.spinner("IA avaliando necessidades clínicas..."):
                 try:
-                    # Configuração da IA Gemini
+                    # 1. Configuração da IA Gemini
                     genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
                     model = genai.GenerativeModel('gemini-pro')
                     
-                    prompt = f"Analise o relato: '{relato}'. Retorne APENAS um JSON com os campos: 'categoria' (Medico, Enfermeiro, Tecnico, Fisioterapeuta, Psicologo), 'urgencia' (Baixa, Media, Alta), 'resumo' (uma frase de orientação)."
+                    # Prompt ultra-específico para evitar lixo no JSON
+                    prompt = f"""
+                    Analise este relato de saúde: '{relato}'
+                    Responda RIGOROSAMENTE apenas um objeto JSON (sem markdown, sem texto antes ou depois):
+                    {{
+                        "categoria": "Medico" ou "Enfermeiro" ou "Tecnico" ou "Fisioterapeuta" ou "Psicologo",
+                        "urgencia": "Baixa" ou "Media" ou "Alta",
+                        "resumo": "Uma orientação curta."
+                    }}
+                    """
                     
                     response = model.generate_content(prompt)
                     
-                    # Limpeza segura do JSON
-                    texto_limpo = response.text.replace('```json', '').replace('```', '').strip()
-                    res = json.loads(texto_limpo)
+                    # 2. Limpeza Avançada de JSON
+                    # Remove possíveis marcações de markdown ```json que a IA costuma colocar
+                    raw_res = response.text.strip()
+                    if raw_res.startswith("```"):
+                        raw_res = raw_res.split("```")[1]
+                        if raw_res.startswith("json"):
+                            raw_res = raw_res[4:]
+                    
+                    res = json.loads(raw_res.strip())
                     
                     st.divider()
                     st.subheader(f"📍 Recomendação: {res['categoria']}")
                     st.info(f"**Análise da IA:** {res['resumo']}")
 
-                    # Busca no Banco de Dados - APENAS VERIFICADOS
+                    # 3. Busca no Banco de Dados - APENAS VERIFICADOS
                     conn = sqlite3.connect('homecare_v2.db')
                     cursor = conn.cursor()
+                    
+                    # Importante: Categoria deve bater exatamente com o que a IA mandou
                     cursor.execute("""SELECT nome, categoria, contato, cidade, conselho, bio, experiencia 
                                       FROM profissionais 
                                       WHERE categoria=? AND verificado=1""", (res['categoria'],))
@@ -201,10 +218,12 @@ def mostrar_triagem():
                                 </div>
                                 """, unsafe_allow_html=True)
                     else:
-                        st.warning(f"A IA recomendou um especialista em {res['categoria']}, mas não há profissionais verificados disponíveis no momento.")
+                        st.warning(f"A IA recomendou um especialista em **{res['categoria']}**, mas você ainda não aprovou nenhum profissional desta categoria no Painel de Controle.")
                 
                 except Exception as e:
-                    st.error("Erro no processamento. Certifique-se de que o relato é claro.")
+                    # AGORA O ERRO VAI APARECER AQUI PARA SABERMOS O QUE É
+                    st.error(f"Erro técnico: {str(e)}")
+                    st.write("Dica: Verifique se o formato do seu banco de dados está correto e se os profissionais estão marcados como 'Aprovado'.")
         else:
             st.warning("Por favor, descreva o caso.")
 
