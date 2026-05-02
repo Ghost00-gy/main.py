@@ -149,8 +149,15 @@ def mostrar_admin():
         conn.close()
 
 def mostrar_triagem():
-    st.sidebar.button("⬅️ Voltar", on_click=lambda: st.session_state.update({"pagina": "home"}))
-    st.title("🩺 Triagem Inteligente")
+   if st.button("Analisar e Localizar Especialistas"):
+    if relato:
+        with st.spinner("IA analisando..."):
+            try:
+                # Força a configuração da API estável
+                genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
+                
+                # Mudança estratégica: usamos apenas 'gemini-1.5-flash'
+                model = genai.GenerativeModel(model_name='gemini-1.5-flash')
     
     relato = st.text_area("Descreva o quadro do paciente:", height=150)
 
