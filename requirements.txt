@@ -4,3 +4,6 @@ plotly
 googlemaps
 streamlit-folium
 geopy
+streamlit-folium
+folium
+geopy
