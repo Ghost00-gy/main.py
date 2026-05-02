@@ -32,7 +32,7 @@ st.markdown("""
         margin-bottom: 10px;
     }
     .card-resultado {
-        background: white; padding: 20px; border-radius: 15px;
+        background: white; padding: 25px; border-radius: 15px;
         border-left: 10px solid #1A3A5A; margin-bottom: 20px;
         box-shadow: 0 4px 15px rgba(0,0,0,0.1);
     }
@@ -46,7 +46,7 @@ def mostrar_home():
     with col1:
         if os.path.exists("logo.png"): st.image("logo.png", width=250)
         st.markdown('# Cuidado e conexão em casa.')
-        st.write("Conectamos famílias aos melhores profissionais com segurança e curadoria local.")
+        st.write("Conectamos famílias aos melhores profissionais de Tatuí com segurança e curadoria.")
         if st.button("🚀 Iniciar Triagem"):
             st.session_state.pagina = "triagem"; st.rerun()
         if st.button("👨‍⚕️ Sou Profissional (Cadastro)"):
@@ -65,7 +65,7 @@ def mostrar_cadastro():
             nome = st.text_input("Nome Completo")
             cat = st.selectbox("Especialidade", ["Medico", "Enfermeiro", "Tecnico", "Fisioterapeuta", "Psicologo"])
             conselho = st.text_input("Registro Profissional (Ex: COREN, CRM)")
-            whatsapp = st.text_input("WhatsApp com DDD")
+            whatsapp = st.text_input("WhatsApp (apenas números com DDD)")
         with c2:
             cidade = st.text_input("Cidade/Estado")
             bio = st.text_area("Resumo Profissional")
@@ -77,137 +77,106 @@ def mostrar_cadastro():
                 cursor.execute("INSERT INTO profissionais (nome, categoria, contato, cidade, conselho, bio, experiencia) VALUES (?,?,?,?,?,?,?)", 
                                (nome, cat, whatsapp, cidade, conselho, bio, exp))
                 conn.commit(); conn.close()
-                st.success("Cadastro realizado! Aguarde aprovação.")
-            else: st.error("Preencha os campos obrigatórios.")
+                st.success("Cadastro realizado! Aguarde a aprovação administrativa.")
+            else: st.error("Por favor, preencha nome e WhatsApp.")
 
 def mostrar_admin():
     st.sidebar.button("⬅️ Voltar", on_click=lambda: st.session_state.update({"pagina": "home"}))
     st.title("📊 Painel Administrativo")
 
-    # Sistema de Login Simples
     if "autenticado" not in st.session_state:
         st.session_state.autenticado = False
 
     if not st.session_state.autenticado:
-        senha = st.text_input("Digite a senha de administrador:", type="password")
-        if st.button("Acessar Painel"):
+        senha = st.text_input("Senha de acesso:", type="password")
+        if st.button("Entrar"):
             if senha == "tatuicare2026":
                 st.session_state.autenticado = True
                 st.rerun()
             else:
-                st.error("Senha incorreta. Acesso negado.")
-        return # Para a execução aqui se não estiver autenticado
+                st.error("Acesso negado.")
+        return
 
-    # Conteúdo do Painel (Só aparece se autenticado)
     if st.sidebar.button("🔒 Sair do Painel"):
         st.session_state.autenticado = False
         st.rerun()
 
     conn = sqlite3.connect('homecare_v2.db')
     cursor = conn.cursor()
-    
-    # Métricas Rápidas
-    total = cursor.execute("SELECT COUNT(*) FROM profissionais").fetchone()[0]
-    pendentes = cursor.execute("SELECT COUNT(*) FROM profissionais WHERE verificado = 0").fetchone()[0]
-    
-    col_m1, col_m2 = st.columns(2)
-    col_m1.metric("Total de Cadastros", total)
-    col_m2.metric("Aguardando Aprovação", pendentes)
-    
-    st.markdown("---")
-    
     pros = cursor.execute("SELECT id, nome, categoria, verificado, conselho FROM profissionais").fetchall()
     
+    st.write(f"Total de registros: {len(pros)}")
+    
     for p in pros:
-        status = "✅ VERIFICADO" if p[3] == 1 else "⏳ PENDENTE"
+        status = "✅ OK" if p[3] == 1 else "⏳ PENDENTE"
         with st.container():
-            st.markdown(f"""
-            <div class="card-admin">
-                <span style="float:right; font-weight:bold; color:{'#28a745' if p[3]==1 else '#ffc107'};">{status}</span>
-                <b>{p[1]}</b><br>
-                <small>{p[2]} | {p[4]}</small>
-            </div>
-            """, unsafe_allow_html=True)
-            
+            st.markdown(f'<div class="card-admin"><b>{p[1]}</b> - {p[2]} - {status}<br><small>{p[4]}</small></div>', unsafe_allow_html=True)
             c1, c2 = st.columns(2)
             with c1:
                 if p[3] == 0:
-                    if st.button(f"Aprovar {p[1]}", key=f"ap_{p[0]}"):
+                    if st.button(f"Aprovar {p[0]}", key=f"ap_{p[0]}"):
                         cursor.execute("UPDATE profissionais SET verificado = 1 WHERE id = ?", (p[0],))
                         conn.commit(); st.rerun()
             with c2:
-                if st.button(f"🗑️ Remover Cadastro", key=f"ex_{p[0]}"):
+                if st.button(f"Remover {p[0]}", key=f"ex_{p[0]}"):
                     cursor.execute("DELETE FROM profissionais WHERE id = ?", (p[0],))
                     conn.commit(); st.rerun()
     conn.close()
-    
+
 def mostrar_triagem():
     st.sidebar.button("⬅️ Voltar", on_click=lambda: st.session_state.update({"pagina": "home"}))
     st.title("🩺 Triagem Inteligente")
     
-    # Base Local de Conhecimento
     BASE_CUIDADOS = {
         "coracao": {"cat": "Enfermeiro", "msg": "Cuidados pós-operatórios cardíacos exigem controle rigoroso de medicação e curativos."},
         "cardiaco": {"cat": "Enfermeiro", "msg": "Cuidados pós-operatórios cardíacos exigem controle rigoroso de medicação e curativos."},
-        "femur": {"cat": "Fisioterapeuta", "msg": "Recuperação de cirurgia de fêmur foca em mobilidade e prevenção de atrofia."},
-        "fratura": {"cat": "Fisioterapeuta", "msg": "Recuperação de cirurgia de fêmur foca em mobilidade e prevenção de atrofia."},
-        "idoso": {"cat": "Tecnico", "msg": "Auxílio em atividades diárias, higiene e alimentação monitorada."},
-        "ferida": {"cat": "Enfermeiro", "msg": "Tratamento e limpeza de feridas devem ser feitos com técnica estéril."},
-        "curativo": {"cat": "Enfermeiro", "msg": "Tratamento e limpeza de feridas devem ser feitos com técnica estéril."},
-        "reabilitacao": {"cat": "Fisioterapeuta", "msg": "Fisioterapia domiciliar para ganho de força e equilíbrio."},
-        "medicamento": {"cat": "Tecnico", "msg": "Acompanhamento para administração correta de horários e dosagens."}
+        "femur": {"cat": "Fisioterapeuta", "msg": "Recuperação de cirurgia de fêmur foca em mobilidade precoce e prevenção de atrofia."},
+        "fratura": {"cat": "Fisioterapeuta", "msg": "Recuperação de cirurgia de fêmur foca em mobilidade precoce e prevenção de atrofia."},
+        "idoso": {"cat": "Tecnico", "msg": "Auxílio em atividades diárias, higiene corporal e alimentação monitorada."},
+        "ferida": {"cat": "Enfermeiro", "msg": "Tratamento de feridas e trocas de curativo devem seguir técnica estéril."},
+        "curativo": {"cat": "Enfermeiro", "msg": "Tratamento de feridas e trocas de curativo devem seguir técnica estéril."},
+        "reabilitacao": {"cat": "Fisioterapeuta", "msg": "Fisioterapia domiciliar para recuperação de força e equilíbrio."},
+        "medicamento": {"cat": "Tecnico", "msg": "Acompanhamento para administração correta de horários e dosagens de remédios."}
     }
 
-    relato = st.text_area("Descreva a necessidade do paciente (ex: coração, idoso, curativo):", height=150).lower()
+    relato = st.text_area("Descreva a necessidade (ex: coração, idoso, curativo):", height=150).lower()
     
     if st.button("Localizar Especialistas"):
         if relato:
-            encontrou_chave = False
+            encontrou = False
             for chave, dados in BASE_CUIDADOS.items():
                 if chave in relato:
-                    st.success(f"📍 Recomendação para: {dados['cat']}")
-                    st.info(f"💡 Dica Profissional: {dados['msg']}")
+                    st.success(f"📍 Recomendação: {dados['cat']}")
+                    st.info(f"💡 Orientação Profissional: {dados['msg']}")
                     
-                   # Dentro da função mostrar_triagem, no loop de profissionais encontrados:
-
-if encontrados:
-    st.write(f"### Profissionais Verificados em Tatuí:")
-    for prof in encontrados:
-        # Criamos a mensagem automática (codificada para URL)
-        mensagem_venda = f"Olá {prof[0]}, vi seu perfil verificado no HomeCare Connect e gostaria de agendar uma consulta."
-        mensagem_url = mensagem_venda.replace(" ", "%20")
-        
-        st.markdown(f"""
-        <div class="card-resultado">
-            <h3>{prof[0]}</h3>
-            <p><b>{dados['cat']}</b> | {prof[2]}</p>
-            <p style="font-size: 14px; color: #555;">{prof[3]}</p>
-            <a href="https://wa.me/{prof[1]}?text={mensagem_url}" target="_blank" 
-               style="background:#25D366; color:white; padding:12px 25px; border-radius:8px; text-decoration:none; font-weight:bold; display:inline-block;">
-               Chamar no WhatsApp
-            </a>
-        </div>
-        """, unsafe_allow_html=True)
+                    conn = sqlite3.connect('homecare_v2.db')
+                    cursor = conn.cursor()
+                    cursor.execute("SELECT nome, contato, conselho, bio FROM profissionais WHERE verificado=1 AND categoria=?", (dados['cat'],))
+                    encontrados = cursor.fetchall()
+                    conn.close()
                     
                     if encontrados:
-                        st.write(f"### Profissionais Verificados em Tatuí:")
+                        st.write("### Profissionais Verificados Disponíveis:")
                         for prof in encontrados:
+                            msg_wa = f"Olá {prof[0]}, vi seu perfil verificado no HomeCare Connect e gostaria de agendar uma consulta."
+                            url_wa = f"https://wa.me/{prof[1]}?text={msg_wa.replace(' ', '%20')}"
+                            
                             st.markdown(f"""
                             <div class="card-resultado">
                                 <h3>{prof[0]}</h3>
                                 <p><b>{dados['cat']}</b> | {prof[2]}</p>
                                 <p style="font-size: 14px; color: #555;">{prof[3]}</p>
-                                <a href="https://wa.me/{prof[1]}" target="_blank" style="background:#25D366; color:white; padding:10px 20px; border-radius:8px; text-decoration:none; font-weight:bold; display:inline-block;">Chamar no WhatsApp</a>
+                                <a href="{url_wa}" target="_blank" style="background:#25D366; color:white; padding:12px 25px; border-radius:8px; text-decoration:none; font-weight:bold; display:inline-block;">Chamar no WhatsApp</a>
                             </div>
                             """, unsafe_allow_html=True)
                     else:
-                        st.warning(f"Ainda não temos {dados['cat']} verificados em nossa base.")
+                        st.warning(f"Ainda não temos {dados['cat']} verificados para esta especialidade.")
                     
-                    encontrou_chave = True
+                    encontrou = True
                     break
             
-            if not encontrou_chave:
-                st.warning("Não identificamos uma categoria específica no seu relato. Tente usar termos como 'coração', 'idoso' ou 'curativo'.")
+            if not encontrou:
+                st.warning("Não identificamos uma categoria. Tente usar termos como 'coração', 'idoso', 'fêmur' ou 'curativo'.")
         else:
             st.warning("Por favor, descreva o caso.")
 
