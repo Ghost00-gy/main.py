@@ -7,7 +7,7 @@ from PIL import Image
 
 # 1. CONFIGURAÇÕES DE ALTA DISPONIBILIDADE
 st.set_page_config(
-    page_title="HomeCare Connect | Elite Health", 
+    page_title="HomeCare Connect | Elite Health",
     layout="wide", 
     page_icon="🏥"
 )
@@ -92,17 +92,17 @@ def mostrar_cadastro():
     st.sidebar.button("⬅️ Voltar", on_click=lambda: st.session_state.update({"pagina": "home"}))
     st.title("📝 Cadastro de Elite")
     
-    with st.form("form_cadastro_v5"):
-        c1, c2 = st.columns(2)
-        with c1:
-            nome = st.text_input("Nome Completo")
-            cat = st.selectbox("Especialidade", ["Medico", "Enfermeiro", "Tecnico", "Fisioterapeuta", "Psicologo"])
-            whatsapp = st.text_input("WhatsApp (com DDD)")
-        with c2:
-            conselho = st.text_input("Registro Profissional (CRM/COREN/CREFITO)")
-            bio = st.text_area("Resumo Profissional")
-            uploaded_file = st.file_uploader("Documento de Identidade/Conselho (PDF)", type=["pdf"])
-
+with st.form("form_cadastro_nacional"):
+    col_n1, col_n2 = st.columns(2)
+    with col_n1:
+        nome = st.text_input("Nome Completo")
+        cat = st.selectbox("Especialidade", ["Medico", "Enfermeiro", "Tecnico", "Fisioterapeuta", "Psicologo"])
+        # Escala Nacional
+        estado = st.selectbox("Estado (UF)", ["AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA", "MT", "MS", "MG", "PA", "PB", "PR", "PE", "PI", "RJ", "RN", "RS", "RO", "RR", "SC", "SP", "SE", "TO"])
+    with col_n2:
+        cidade = st.text_input("Cidade de Atuação")
+        whatsapp = st.text_input("WhatsApp (com DDD)")
+        conselho = st.text_input("Registro Profissional (CRM/COREN/etc)")
         st.markdown("---")
         concordo = st.checkbox("Li e concordo que meus dados sejam processados conforme a LGPD.")
 
