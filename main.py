@@ -1,13 +1,11 @@
 import streamlit as st
-import os, json, sqlite3, base64
-import pandas as pd
+import os, sqlite3, pandas as pd
 import plotly.express as px
 from datetime import datetime
-from PIL import Image
 
 # 1. CONFIGURAÇÕES DE ALTA DISPONIBILIDADE
 st.set_page_config(
-    page_title="HomeCare Connect | Elite Health",
+    page_title="HomeCare Connect | Brasil",
     layout="wide", 
     page_icon="🏥"
 )
@@ -17,50 +15,41 @@ if 'pagina' not in st.session_state: st.session_state.pagina = "home"
 if 'autenticado' not in st.session_state: st.session_state.autenticado = False
 if 'fonte_grande' not in st.session_state: st.session_state.fonte_grande = False
 
-# 2. MOTOR DE DADOS COM AUDITORIA (SQLITE3)
+# 2. MOTOR DE DADOS NACIONAL (v5)
 def init_db():
-    conn = sqlite3.connect('homecare_v4.db')
+    conn = sqlite3.connect('homecare_nacional.db')
     cursor = conn.cursor()
-    # Tabela de Profissionais
+    # Tabela com campos de UF e Cidade para Escala Nacional
     cursor.execute('''CREATE TABLE IF NOT EXISTS profissionais 
                       (id INTEGER PRIMARY KEY AUTOINCREMENT, 
-                       nome TEXT, categoria TEXT, contato TEXT, cidade TEXT,
-                       conselho TEXT, bio TEXT, experiencia TEXT, 
-                       doc_path TEXT, rating REAL DEFAULT 5.0, verificado INTEGER DEFAULT 0)''')
+                       nome TEXT, categoria TEXT, contato TEXT, 
+                       uf TEXT, cidade TEXT, conselho TEXT, bio TEXT, 
+                       doc_path TEXT, rating REAL DEFAULT 5.0, 
+                       total_avaliacoes INTEGER DEFAULT 0,
+                       verificado INTEGER DEFAULT 0)''')
     
-    # Registro de Inteligência de Mercado
     cursor.execute('''CREATE TABLE IF NOT EXISTS metricas_triagem 
                       (id INTEGER PRIMARY KEY AUTOINCREMENT, 
-                       termo TEXT, data TEXT, categoria_id TEXT)''')
+                       termo TEXT, uf TEXT, cidade TEXT, data TEXT, categoria_id TEXT)''')
     
-    # Registro de Auditoria
     cursor.execute('''CREATE TABLE IF NOT EXISTS logs_auditoria 
                       (id INTEGER PRIMARY KEY AUTOINCREMENT, acao TEXT, 
                        alvo TEXT, data_hora TEXT, responsavel TEXT)''')
     conn.commit()
     conn.close()
 
-def registrar_log(acao, alvo):
-    conn = sqlite3.connect('homecare_v4.db')
-    agora = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
-    conn.execute("INSERT INTO logs_auditoria (acao, alvo, data_hora, responsavel) VALUES (?,?,?,?)",
-                 (acao, alvo, agora, "Admin-Master"))
-    conn.commit(); conn.close()
-
 init_db()
 
-# 3. ACESSIBILIDADE E DESIGN SYSTEM
+# 3. DESIGN SYSTEM NACIONAL
 tamanho_fonte = "1.25rem" if st.session_state.fonte_grande else "1rem"
-
 st.markdown(f"""
     <style>
-    :root {{ --primary: #2E4A7D; --secondary: #4A90E2; --bg: #F8F9FA; }}
+    :root {{ --primary: #2E4A7D; --bg: #F8F9FA; }}
     html, body, [class*="css"] {{ font-size: {tamanho_fonte}; color: #1A3A5A; background-color: var(--bg); }}
-    .stButton>button {{ border-radius: 12px; border: 2px solid var(--primary); font-weight: 600; }}
     .card-elite {{
-        background: white; border-radius: 20px; padding: 30px;
-        box-shadow: 0 15px 35px rgba(46, 74, 125, 0.08);
-        border-left: 10px solid var(--primary); margin-bottom: 25px;
+        background: white; border-radius: 20px; padding: 25px;
+        box-shadow: 0 10px 30px rgba(46, 74, 125, 0.1);
+        border-left: 10px solid var(--primary); margin-bottom: 20px;
     }}
     </style>
     """, unsafe_allow_html=True)
@@ -71,125 +60,127 @@ def mostrar_home():
     col1, col2 = st.columns([1, 1])
     with col1:
         if os.path.exists("logo.png"): st.image("logo.png", width=380)
-        st.title("Excelência em Cuidado Domiciliar")
-        st.write("Conectando Tatuí aos melhores especialistas através de triagem inteligente e curadoria rigorosa.")
+        st.title("Conexão Saúde em Todo o Brasil")
+        st.write("A elite dos profissionais de saúde domiciliar, agora com cobertura nacional e inteligência logística.")
         
-        if st.button("🚀 Iniciar Triagem de Saúde", use_container_width=True):
+        if st.button("🚀 Iniciar Triagem Nacional", use_container_width=True):
             st.session_state.pagina = "triagem"; st.rerun()
         
         st.divider()
         c_nav1, c_nav2 = st.columns(2)
-        with c_nav1:
-            if st.button("👨‍⚕️ Cadastro Especialista", use_container_width=True):
-                st.session_state.pagina = "cadastro"; st.rerun()
-        with c_nav2:
-            if st.button("📊 Gestão & Métricas", use_container_width=True):
-                st.session_state.pagina = "admin"; st.rerun()
+        c_nav1.button("👨‍⚕️ Cadastro Profissional", on_click=lambda: st.session_state.update({"pagina": "cadastro"}), use_container_width=True)
+        c_nav2.button("📊 Centro de Inteligência", on_click=lambda: st.session_state.update({"pagina": "admin"}), use_container_width=True)
     with col2:
-        st.image("https://images.unsplash.com/photo-1516549655169-df83a0774514?auto=format&fit=crop&q=80&w=800")
+        st.image("https://images.unsplash.com/photo-1576091160550-2173dba999ef?auto=format&fit=crop&q=80&w=800")
 
 def mostrar_cadastro():
     st.sidebar.button("⬅️ Voltar", on_click=lambda: st.session_state.update({"pagina": "home"}))
-    st.title("📝 Cadastro de Elite")
+    st.title("📝 Cadastro Nacional de Especialistas")
     
-with st.form("form_cadastro_nacional"):
-    col_n1, col_n2 = st.columns(2)
-    with col_n1:
-        nome = st.text_input("Nome Completo")
-        cat = st.selectbox("Especialidade", ["Medico", "Enfermeiro", "Tecnico", "Fisioterapeuta", "Psicologo"])
-        # Escala Nacional
-        estado = st.selectbox("Estado (UF)", ["AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA", "MT", "MS", "MG", "PA", "PB", "PR", "PE", "PI", "RJ", "RN", "RS", "RO", "RR", "SC", "SP", "SE", "TO"])
-    with col_n2:
-        cidade = st.text_input("Cidade de Atuação")
-        whatsapp = st.text_input("WhatsApp (com DDD)")
-        conselho = st.text_input("Registro Profissional (CRM/COREN/etc)")
+    with st.form("form_cadastro_nacional"):
+        c1, c2 = st.columns(2)
+        with c1:
+            nome = st.text_input("Nome Completo")
+            cat = st.selectbox("Especialidade", ["Medico", "Enfermeiro", "Tecnico", "Fisioterapeuta", "Psicologo"])
+            uf = st.selectbox("Estado (UF)", ["AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA", "MT", "MS", "MG", "PA", "PB", "PR", "PE", "PI", "RJ", "RN", "RS", "RO", "RR", "SC", "SP", "SE", "TO"])
+            cidade = st.text_input("Cidade")
+        with c2:
+            whatsapp = st.text_input("WhatsApp (com DDD)")
+            conselho = st.text_input("Registro Profissional (Ex: CRM-SP 12345)")
+            uploaded_file = st.file_uploader("Documento de Comprovação (PDF)", type=["pdf"])
+        
         st.markdown("---")
-        concordo = st.checkbox("Li e concordo que meus dados sejam processados conforme a LGPD.")
+        concordo = st.checkbox("Declaro que as informações são verídicas e aceito os termos da LGPD.")
 
-        if st.form_submit_button("Finalizar Submissão"):
-            if nome and whatsapp and concordo and uploaded_file:
-                # Salvar arquivo
+        if st.form_submit_button("Submeter Candidatura Nacional"):
+            if nome and uf and cidade and uploaded_file and concordo:
                 doc_path = f"docs/{whatsapp}_{uploaded_file.name}"
                 os.makedirs("docs", exist_ok=True)
-                with open(doc_path, "wb") as f:
-                    f.write(uploaded_file.getbuffer())
+                with open(doc_path, "wb") as f: f.write(uploaded_file.getbuffer())
                 
-                conn = sqlite3.connect('homecare_v4.db')
-                conn.execute("INSERT INTO profissionais (nome, categoria, contato, cidade, conselho, bio, doc_path) VALUES (?,?,?,?,?,?,?)",
-                             (nome, cat, whatsapp, "Tatuí", conselho, bio, doc_path))
+                conn = sqlite3.connect('homecare_nacional.db')
+                conn.execute("INSERT INTO profissionais (nome, categoria, uf, cidade, contato, conselho, doc_path) VALUES (?,?,?,?,?,?,?)",
+                             (nome, cat, uf, cidade, whatsapp, conselho, doc_path))
                 conn.commit(); conn.close()
-                st.success("Candidatura enviada com sucesso!")
-            else:
-                st.error("Preencha todos os campos e aceite os termos.")
+                st.success(f"Cadastro para {cidade}-{uf} enviado para análise!")
+            else: st.error("Por favor, preencha todos os campos obrigatórios.")
 
 def mostrar_admin():
     st.sidebar.button("⬅️ Voltar", on_click=lambda: st.session_state.update({"pagina": "home"}))
-    
     if not st.session_state.autenticado:
-        st.title("🔑 Acesso Administrativo")
-        senha = st.text_input("Chave Mestra:", type="password")
+        senha = st.text_input("Chave Mestra Nacional:", type="password")
         if st.button("Acessar"):
-            if senha == "tatuicare2026":
-                st.session_state.autenticado = True; st.rerun()
+            if senha == "tatuicare2026": st.session_state.autenticado = True; st.rerun()
         return
 
-    tab1, tab2, tab3 = st.tabs(["📊 Dashboard BI", "⚖️ Curadoria", "📜 Auditoria"])
+    st.title("📊 Painel de Controle Nacional")
+    tab1, tab2 = st.tabs(["📈 Business Intelligence", "⚖️ Curadoria de Documentos"])
     
-    conn = sqlite3.connect('homecare_v4.db')
-    
+    conn = sqlite3.connect('homecare_nacional.db')
     with tab1:
-        st.subheader("Centro de Inteligência Tatuí")
-        df_metricas = pd.read_sql_query("SELECT termo, COUNT(*) as volume FROM metricas_triagem GROUP BY termo", conn)
+        # Gráfico por Estado
+        df_uf = pd.read_sql_query("SELECT uf, COUNT(*) as volume FROM metricas_triagem GROUP BY uf", conn)
+        if not df_uf.empty:
+            fig = px.choropleth(df_uf, locations='uf', locationmode="USA-states", color='volume', scope="south america", title="Mapa de Calor de Demandas (Brasil)")
+            st.plotly_chart(fig, use_container_width=True)
         
-        col_g1, col_g2 = st.columns([6, 4])
-        with col_g1:
-            if not df_metricas.empty:
-                fig = px.bar(df_metricas, x='termo', y='volume', title="Demandas por Patologia", color_discrete_sequence=['#2E4A7D'])
-                st.plotly_chart(fig, use_container_width=True)
-        with col_g2:
-            df_cat = pd.read_sql_query("SELECT categoria_id, COUNT(*) as total FROM metricas_triagem GROUP BY categoria_id", conn)
-            if not df_cat.empty:
-                fig_pizza = px.pie(df_cat, values='total', names='categoria_id', hole=.3, title="Por Especialidade")
-                st.plotly_chart(fig_pizza, use_container_width=True)
-
+        m1, m2 = st.columns(2)
+        total_nacional = conn.execute("SELECT COUNT(*) FROM profissionais WHERE verificado=1").fetchone()[0]
+        m1.metric("Especialistas Ativos no Brasil", total_nacional)
+        
     with tab2:
-        pendentes = conn.execute("SELECT id, nome, categoria, doc_path FROM profissionais WHERE verificado = 0").fetchall()
+        pendentes = conn.execute("SELECT id, nome, uf, cidade, doc_path FROM profissionais WHERE verificado=0").fetchall()
         for p in pendentes:
-            with st.expander(f"Analisar: {p[1]}"):
-                if p[3] and os.path.exists(p[3]):
-                    st.download_button("Baixar PDF", open(p[3], "rb"), file_name=p[3], key=f"dl_{p[0]}")
+            with st.expander(f"Analisar: {p[1]} ({p[3]}-{p[2]})"):
+                st.write(f"Localidade: {p[3]} / {p[2]}")
                 if st.button(f"Aprovar {p[1]}", key=f"ap_{p[0]}"):
-                    conn.execute("UPDATE profissionais SET verificado = 1 WHERE id = ?", (p[0],))
-                    conn.commit()
-                    registrar_log("APROVAÇÃO", p[1])
-                    st.rerun()
-
-    with tab3:
-        df_logs = pd.read_sql_query("SELECT data_hora, acao, alvo FROM logs_auditoria ORDER BY id DESC", conn)
-        st.table(df_logs)
-    
+                    conn.execute("UPDATE profissionais SET verificado=1 WHERE id=?", (p[0],))
+                    conn.commit(); st.rerun()
     conn.close()
 
 def mostrar_triagem():
     st.sidebar.button("⬅️ Voltar", on_click=lambda: st.session_state.update({"pagina": "home"}))
-    st.title("🩺 Triagem Especializada")
+    st.title("🩺 Triagem e Localização de Elite")
     
-    BASE = {"coracao": "Enfermeiro", "cardiaco": "Enfermeiro", "femur": "Fisioterapeuta", "idoso": "Tecnico"}
-    relato = st.text_area("Descreva a necessidade:").lower()
+    c1, c2 = st.columns(2)
+    uf_busca = c1.selectbox("Onde você está? (UF)", ["SP", "RJ", "MG", "RS", "PR", "Outros..."])
+    cidade_busca = c2.text_input("Sua Cidade")
     
-    if st.button("Localizar Especialistas"):
+    relato = st.text_area("Descreva a necessidade clínica (ex: pós-operatório, idoso, curativo):").lower()
+    
+    if st.button("Localizar Especialista Próximo", type="primary"):
+        BASE = {"coracao": "Enfermeiro", "femur": "Fisioterapeuta", "idoso": "Tecnico"}
         cat_sugerida = next((BASE[k] for k in BASE if k in relato), None)
-        if cat_sugerida:
-            # Salvar métrica
-            conn = sqlite3.connect('homecare_v4.db')
-            conn.execute("INSERT INTO metricas_triagem (termo, data, categoria_id) VALUES (?,?,?)",
-                         (cat_sugerida, datetime.now().strftime("%d/%m/%Y"), cat_sugerida))
-            conn.commit(); conn.close()
+        
+        if cat_sugerida and cidade_busca:
+            # Salvar Métrica Geográfica
+            conn = sqlite3.connect('homecare_nacional.db')
+            conn.execute("INSERT INTO metricas_triagem (termo, uf, cidade, data, categoria_id) VALUES (?,?,?,?,?)",
+                         (cat_sugerida, uf_busca, cidade_busca, datetime.now().strftime("%d/%m/%Y"), cat_sugerida))
             
-            st.success(f"Recomendação: {cat_sugerida}")
-            # Busca profissionais... (lógica de exibição que já temos)
+            # Buscar apenas na região do paciente
+            pros = conn.execute("SELECT nome, contato, conselho, rating, bio FROM profissionais WHERE verificado=1 AND categoria=? AND uf=? AND cidade LIKE ?", 
+                                (cat_sugerida, uf_busca, f"%{cidade_busca}%")).fetchall()
+            conn.close()
+            
+            if pros:
+                st.success(f"Encontramos {len(pros)} especialistas de elite em {cidade_busca}!")
+                for p in pros:
+                    # Cálculo de Rota (Simulado até a inserção da API Key)
+                    st.markdown(f"""
+                    <div class="card-elite">
+                        <span style="float:right;">⭐ {p[3]}</span>
+                        <h3>{p[0]}</h3>
+                        <p><b>{cat_sugerida}</b> | {p[2]}</p>
+                        <p><i>"{p[4]}"</i></p>
+                        <p style="color: #2E4A7D; font-weight: bold;">📍 Disponível para atendimento em {cidade_busca}</p>
+                        <a href="https://wa.me/{p[1]}" target="_blank" style="background:#25D366; color:white; padding:10px 25px; border-radius:10px; text-decoration:none; font-weight:bold; display:inline-block;">Chamar no WhatsApp</a>
+                    </div>
+                    """, unsafe_allow_html=True)
+            else:
+                st.warning(f"Ainda não temos especialistas verificados em {cidade_busca}. Nossa rede está expandindo!")
         else:
-            st.warning("Seja mais específico no relato.")
+            st.error("Preencha a cidade e descreva o caso.")
 
 # MAESTRO
 if st.session_state.pagina == "home": mostrar_home()
